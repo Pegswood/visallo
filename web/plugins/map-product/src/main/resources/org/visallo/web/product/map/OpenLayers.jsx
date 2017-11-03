@@ -120,7 +120,8 @@ define([
                             const { normal, selected } = styles;
                             if (normal && normal.length) {
                                 const radius = getRadiusFromStyles(normal);
-                                const normalImage = normal[0].getImage();
+                                const normalImage = _.isFunction(normal[0].getImage) &&
+                                    normal[0].getImage();
 
                                 featureValues._nodeRadius = radius
 
@@ -263,12 +264,13 @@ define([
         componentWillUnmount() {
             this._canvasPreviewBuffer = null;
             clearTimeout(this._handleMouseMoveTimeout);
-            if (this.state.cluster) {
-                this.olEvents.forEach(key => ol.Observable.unByKey(key));
-                this.olEvents = null;
-
+            if (this.domEvents) {
                 this.domEvents.forEach(fn => fn());
                 this.domEvents = null;
+            }
+            if (this.olEvents) {
+                this.olEvents.forEach(key => ol.Observable.unByKey(key));
+                this.olEvents = null;
             }
         },
 
@@ -456,6 +458,21 @@ define([
                 throw new Error('map.provider is invalid')
             }
 
+            this.olEvents.push(baseLayerSource.on('tileloaderror', function(event) {
+                const MaxRetry = 3;
+                const { tile } = event;
+
+                if (tile) {
+                    tile._retryCount = (tile._retryCount || 0) + 1;
+                    if (tile._retryCount <= MaxRetry) {
+                        console.warn(`Tile error retry: ${tile._retryCount} of ${MaxRetry}`, tile.src_);
+                        _.defer(() => {
+                            tile.load();
+                        })
+                    }
+                }
+            }))
+
             map.addLayer(new ol.layer.Tile({ source: baseLayerSource }));
             if (below) {
                 map.addLayer(below.layer);
@@ -480,6 +497,9 @@ define([
                 const layer = new ol.layer.Vector({
                     id: `${type}Layer`,
                     source,
+                    renderBuffer: 500,
+                    updateWhileInteracting: true,
+                    updateWhileAnimating: true,
                     style: ancillary => this._ancillaryStyle(ancillary)
                 });
                 return { source, layer }
@@ -759,12 +779,14 @@ define([
 
     function getRadiusFromStyles(styles) {
         for (let i = styles.length - 1; i >= 0; i--) {
-            const image = styles[i].getImage();
-            const radius = image && _.isFunction(image.getRadius) && image.getRadius();
+            if (_.isFunction(styles[i].getImage)) {
+                const image = styles[i].getImage();
+                const radius = image && _.isFunction(image.getRadius) && image.getRadius();
 
-            if (radius) {
-                const nodeRadius = radius / devicePixelRatio
-                return nodeRadius;
+                if (radius) {
+                    const nodeRadius = radius / devicePixelRatio
+                    return nodeRadius;
+                }
             }
         }
     }
