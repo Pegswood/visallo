@@ -99,11 +99,11 @@ define([
             if (features) {
                 for (let featureIndex = 0; featureIndex < features.length; featureIndex++) {
                     const data = features[featureIndex];
-                    const { id, styles, geometry: geometryFn, geoLocations, element, ...rest } = data;
+                    const { id, styles, geometry: geometryOverride, geoLocations, element, ...rest } = data;
                     let geometry = null;
 
-                    if (geometryFn) {
-                        geometry = geometryFn(ol);
+                    if (geometryOverride) {
+                        geometry = geometryOverride;
                     } else if (geoLocations) {
                         geometry = new ol.geom.MultiPoint(geoLocations.map(geo => ol.proj.fromLonLat(geo)))
                     }
@@ -120,8 +120,12 @@ define([
                             const { normal, selected } = styles;
                             if (normal && normal.length) {
                                 const radius = getRadiusFromStyles(normal);
+                                const normalImage = _.isFunction(normal[0].getImage) &&
+                                    normal[0].getImage();
+
                                 featureValues._nodeRadius = radius
-                                if (selected.length === 0) {
+
+                                if (selected.length === 0 && !geometryOverride && normalImage && _.isFunction(normalImage.getStroke)) {
                                     const newSelected = normal[0].clone();
                                     const newStroke = new ol.style.Stroke({
                                         color: '#0088cc',
@@ -144,10 +148,18 @@ define([
 
                         if (id in existingFeatures) {
                             const existingFeature = existingFeatures[id];
-                            const existingValues = _.omit(existingFeature.getProperties(), 'geometry', 'element')
-                            const newValues = _.omit(featureValues, 'geometry', 'element')
-                            if (!_.isEqual(existingValues, newValues)) {
+                            let diff = _.any(existingFeature.getProperties(), (val, name) => {
+                                if (name === 'styles' || name === 'interacting') return false;
+                                if (val !== featureValues[name]) {
+                                    return true
+                                }
+                                return false;
+                            })
+                            if (diff) {
                                 changed = true
+                                if (existingFeature.get('interacting')) {
+                                    delete featureValues.geometry;
+                                }
                                 existingFeature.setProperties(featureValues)
                             }
                             delete existingFeatures[id];
@@ -252,12 +264,13 @@ define([
         componentWillUnmount() {
             this._canvasPreviewBuffer = null;
             clearTimeout(this._handleMouseMoveTimeout);
-            if (this.state.cluster) {
-                this.olEvents.forEach(key => ol.Observable.unByKey(key));
-                this.olEvents = null;
-
+            if (this.domEvents) {
                 this.domEvents.forEach(fn => fn());
                 this.domEvents = null;
+            }
+            if (this.olEvents) {
+                this.olEvents.forEach(key => ol.Observable.unByKey(key));
+                this.olEvents = null;
             }
         },
 
@@ -414,7 +427,7 @@ define([
         getDefaultViewParameters() {
             return {
                 zoom: 2,
-                minZoom: 2,
+                minZoom: 1,
                 center: [0, 0]
             };
         },
@@ -435,14 +448,30 @@ define([
 
             var baseLayerSource;
 
-            sourceOptions.crossOrigin = 'Anonymous';
-
             if (source in ol.source && _.isFunction(ol.source[source])) {
-                baseLayerSource = new ol.source[source](sourceOptions)
+                baseLayerSource = new ol.source[source]({
+                    crossOrigin: 'anonymous',
+                    ...sourceOptions
+                });
             } else {
                 console.error('Unknown map provider type: ', source);
                 throw new Error('map.provider is invalid')
             }
+
+            this.olEvents.push(baseLayerSource.on('tileloaderror', function(event) {
+                const MaxRetry = 3;
+                const { tile } = event;
+
+                if (tile) {
+                    tile._retryCount = (tile._retryCount || 0) + 1;
+                    if (tile._retryCount <= MaxRetry) {
+                        console.warn(`Tile error retry: ${tile._retryCount} of ${MaxRetry}`, tile.src_);
+                        _.defer(() => {
+                            tile.load();
+                        })
+                    }
+                }
+            }))
 
             map.addLayer(new ol.layer.Tile({ source: baseLayerSource }));
             if (below) {
@@ -465,7 +494,14 @@ define([
         configureAncillary() {
             const createLayer = type => {
                 const source = new ol.source.Vector({ features: [] });
-                const layer = new ol.layer.Vector({ id: `${type}Layer`, source });
+                const layer = new ol.layer.Vector({
+                    id: `${type}Layer`,
+                    source,
+                    renderBuffer: 500,
+                    updateWhileInteracting: true,
+                    updateWhileAnimating: true,
+                    style: ancillary => this._ancillaryStyle(ancillary)
+                });
                 return { source, layer }
             }
 
@@ -527,6 +563,16 @@ define([
                     anchor: feature.get('iconAnchor')
                 })
             })]
+        },
+
+        _ancillaryStyle(ancillary) {
+            const extensionStyles = ancillary.get('styles');
+            if (extensionStyles) {
+                const { normal } = extensionStyles;
+                if (normal.length) {
+                    return normal;
+                }
+            }
         },
 
         _clusterStyle(cluster, { selected = false } = {}) {
@@ -708,15 +754,21 @@ define([
          * @property {object} cluster
          * @property {object} cluster.clusterSource [multiPointCluster](https://github.com/visallo/visallo/blob/master/web/plugins/map-product/src/main/resources/org/visallo/web/product/map/multiPointCluster.js) that implements the [`ol.source.Cluster`](http://openlayers.org/en/latest/apidoc/ol.source.Cluster.html) interface to cluster the `source` features.
          * @property {object} cluster.source The [`ol.source.Vector`](http://openlayers.org/en/latest/apidoc/ol.source.Vector.html) source of all map pins before clustering.
+         * @property {object} above The layer/source above the cluster
+         * @property {object} above.layer The layer above the cluster
+         * @property {object} above.source The source above the cluster
+         * @property {object} below The layer/source below the cluster
+         * @property {object} below.layer The layer below the cluster
+         * @property {object} below.source The source below the cluster
          * @property {object} cluster.layer The [`ol.layer.Vector`](http://openlayers.org/en/latest/apidoc/ol.layer.Vector.html) pin layer
          */
         getInjectedToolProps() {
             const { clearCaches: requestUpdate, product } = this.props;
-            const { map, cluster } = this.state;
+            const { map, cluster, above, below } = this.state;
             let props = {};
 
             if (map && cluster) {
-                props = { product, ol, map, cluster, requestUpdate }
+                props = { product, ol, map, cluster, above, below, requestUpdate }
             }
 
             return props;
@@ -727,11 +779,14 @@ define([
 
     function getRadiusFromStyles(styles) {
         for (let i = styles.length - 1; i >= 0; i--) {
-            const image = styles[i].getImage();
-            const radius = image && image.getRadius();
-            if (radius) {
-                const nodeRadius = radius / devicePixelRatio
-                return nodeRadius;
+            if (_.isFunction(styles[i].getImage)) {
+                const image = styles[i].getImage();
+                const radius = image && _.isFunction(image.getRadius) && image.getRadius();
+
+                if (radius) {
+                    const nodeRadius = radius / devicePixelRatio
+                    return nodeRadius;
+                }
             }
         }
     }
