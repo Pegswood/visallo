@@ -3,21 +3,19 @@ define([
     'prop-types',
     'openlayers',
     'fast-json-patch',
-    './multiPointCluster',
+    './util/layerHelpers',
     'product/toolbar/ProductToolbar'
 ], function(
     createReactClass,
     PropTypes,
     ol,
     jsonpatch,
-    MultiPointCluster,
+    layerHelpers,
     ProductToolbar) {
 
     const noop = function() {};
 
-    const FEATURE_HEIGHT = 40,
-        FEATURE_CLUSTER_HEIGHT = 24,
-        ANIMATION_DURATION = 200,
+    const ANIMATION_DURATION = 200,
         MIN_FIT_ZOOM_RESOLUTION = 3000,
         MAX_FIT_ZOOM_RESOLUTION = 20000,
         PREVIEW_WIDTH = 300,
@@ -27,8 +25,9 @@ define([
     const OpenLayers = createReactClass({
         propTypes: {
             product: PropTypes.object.isRequired,
-            source: PropTypes.string.isRequired,
-            sourceOptions: PropTypes.object,
+            baseSource: PropTypes.string.isRequired,
+            baseSourceOptions: PropTypes.object,
+            sourcesByLayerId: PropTypes.object,
             generatePreview: PropTypes.bool,
             onSelectElements: PropTypes.func.isRequired,
             onUpdatePreview: PropTypes.func.isRequired,
@@ -54,27 +53,35 @@ define([
             }
         },
 
-        componentDidUpdate() {
-            const { cluster, below, above } = this.state;
+        componentDidUpdate(prevProps, prevState) {
+            const { map, layersWithSources } = this.state;
+            const { sourcesByLayerId } = this.props;
 
             let changed = false;
             let fit = [];
 
-            if (cluster) {
-                const { changed: c, fitFeatures } = this._syncLayer(this.props.features, cluster);
-                changed = changed || c;
-                if (fitFeatures) fit.push(...fitFeatures)
-            }
-            if (below) {
-                const { changed: c, fitFeatures } = this._syncLayer(this.props.below, below);
-                changed = changed || c;
-                if (fitFeatures) fit.push(...fitFeatures)
-            }
-            if (above) {
-                const { changed: c, fitFeatures } = this._syncLayer(this.props.above, above);
-                changed = changed || c;
-                if (fitFeatures) fit.push(...fitFeatures)
-            }
+            const layers = map.getLayers();
+
+            layers.forEach(layer => {
+                const layerId = layer.get('id');
+                const layerHelper = layerHelpers[layerId];
+                const layerWithSources = layersWithSources[layerId];
+                const newSource = sourcesByLayerId[layerId];
+                const oldSource = prevProps.sourcesByLayerId[layerId];
+
+                if (layerHelper && layerWithSources) {
+                    const shouldUpdate = _.isFunction(layerHelper.shouldUpdate)
+                        ? layerHelper.shouldUpdate(newSource, oldSource, layerWithSources)
+                        : true;
+
+                    if (shouldUpdate && _.isFunction(layerHelper.update)) {
+                        const { changed: c, fitFeatures } = layerHelper.update(newSource, layerWithSources);
+                        changed = changed || c;
+                        if (fitFeatures) fit.push(...fitFeatures)
+                    }
+                }
+            });
+
             if (fit.length) {
                 this.fit({ limitToFeatures: fit });
             }
@@ -91,103 +98,10 @@ define([
             }
         },
 
-        _syncLayer(features, { source }) {
-            const existingFeatures = _.indexBy(source.getFeatures(), f => f.getId());
-            const newFeatures = [];
-            var changed = false;
-
-            if (features) {
-                for (let featureIndex = 0; featureIndex < features.length; featureIndex++) {
-                    const data = features[featureIndex];
-                    const { id, styles, geometry: geometryOverride, geoLocations, element, ...rest } = data;
-                    let geometry = null;
-
-                    if (geometryOverride) {
-                        geometry = geometryOverride;
-                    } else if (geoLocations) {
-                        geometry = new ol.geom.MultiPoint(geoLocations.map(geo => ol.proj.fromLonLat(geo)))
-                    }
-
-                    if (geometry) {
-                        let featureValues = {
-                            ...rest,
-                            element,
-                            geoLocations,
-                            geometry
-                        };
-
-                        if (styles) {
-                            const { normal, selected } = styles;
-                            if (normal && normal.length) {
-                                const radius = getRadiusFromStyles(normal);
-                                const normalImage = _.isFunction(normal[0].getImage) &&
-                                    normal[0].getImage();
-
-                                featureValues._nodeRadius = radius
-
-                                if (selected.length === 0 && !geometryOverride && normalImage && _.isFunction(normalImage.getStroke)) {
-                                    const newSelected = normal[0].clone();
-                                    const newStroke = new ol.style.Stroke({
-                                        color: '#0088cc',
-                                        width: normal[0].getImage().getStroke().getWidth() || 1
-                                    })
-                                    newSelected.image_ = normal[0].getImage().clone({
-                                        stroke: newStroke,
-                                        opacity: 1
-                                    });
-
-                                    featureValues.styles = {
-                                        normal,
-                                        selected: [newSelected]
-                                    }
-                                } else {
-                                    featureValues.styles = styles;
-                                }
-                            }
-                        }
-
-                        if (id in existingFeatures) {
-                            const existingFeature = existingFeatures[id];
-                            let diff = _.any(existingFeature.getProperties(), (val, name) => {
-                                if (name === 'styles' || name === 'interacting') return false;
-                                if (val !== featureValues[name]) {
-                                    return true
-                                }
-                                return false;
-                            })
-                            if (diff) {
-                                changed = true
-                                if (existingFeature.get('interacting')) {
-                                    delete featureValues.geometry;
-                                }
-                                existingFeature.setProperties(featureValues)
-                            }
-                            delete existingFeatures[id];
-                        } else {
-                            var feature = new ol.Feature(featureValues);
-                            feature.setId(data.id);
-                            newFeatures.push(feature);
-                        }
-                    }
-                }
-            }
-
-            let fitFeatures;
-            if (newFeatures.length) {
-                changed = true
-                source.addFeatures(newFeatures);
-                fitFeatures = newFeatures;
-            }
-            if (!_.isEmpty(existingFeatures)) {
-                changed = true
-                _.forEach(existingFeatures, feature => source.removeFeature(feature));
-            }
-            return { changed, fitFeatures };
-        },
-
         _updatePreview(options = {}) {
             const { fit = false } = options;
-            const { map, baseLayerSource } = this.state;
+            const { map, layersWithSources } = this.state;
+            const { base } = layersWithSources;
             const doFit = () => {
                 if (fit) this.fit({ animate: false });
             };
@@ -241,9 +155,9 @@ define([
                 };
 
                 events = [
-                    baseLayerSource.on('tileloadstart', tileLoadStart),
-                    baseLayerSource.on('tileloadend', tileLoadEnd),
-                    baseLayerSource.on('tileloaderror', tileLoadEnd)
+                    base.source.on('tileloadstart', tileLoadStart),
+                    base.source.on('tileloadend', tileLoadEnd),
+                    base.source.on('tileloaderror', tileLoadEnd)
                 ];
             });
             map.renderSync();
@@ -257,8 +171,9 @@ define([
             this.olEvents = [];
             this.domEvents = [];
             this.updatePreview = _.debounce(this._updatePreview, PREVIEW_DEBOUNCE_SECONDS * 1000);
-            const { map, cluster, baseLayerSource, below, above } = this.configureMap();
-            this.setState({ map, cluster, baseLayerSource, below, above })
+            const { map, layersWithSources } = this.configureMap();
+
+            this.setState({ map, layersWithSources })
         },
 
         componentWillUnmount() {
@@ -357,11 +272,11 @@ define([
 
         fit(options = {}) {
             const { animate = true, limitToFeatures = [] } = options;
-            const { map, cluster } = this.state;
+            const { map, layersWithSources } = this.state;
             const view = map.getView();
             const extent = limitToFeatures.length ?
                 this.extentFromFeatures(limitToFeatures) :
-                cluster.source.getExtent();
+                layersWithSources.cluster.source.getExtent();
             const changeZoom = limitToFeatures.length !== 1;
 
             if (!ol.extent.isEmpty(extent)) {
@@ -433,9 +348,7 @@ define([
         },
 
         configureMap() {
-            const { source, sourceOptions = {} } = this.props;
-            const cluster = this.configureCluster()
-            const { below, above } = this.configureAncillary();
+            const { baseSource, baseSourceOptions = {}, sourcesByLayerId, generatePreview, ...handlers } = this.props;
             const map = new ol.Map({
                 loadTilesWhileInteracting: true,
                 keyboardEventTarget: document,
@@ -443,44 +356,28 @@ define([
                 layers: [],
                 target: this.refs.map
             });
+            const layersWithSources = {};
 
-            this.configureEvents({ map, cluster });
+            const base = layerHelpers.base.configure(baseSource, baseSourceOptions);
+            this.olEvents.concat(layerHelpers.base.addEvents(map, base, handlers));
+            map.addLayer(base.layer);
 
-            var baseLayerSource;
+            _.mapObject(sourcesByLayerId, (source, layerId) => {
+                const layerHelper = layerHelpers[layerId];
 
-            if (source in ol.source && _.isFunction(ol.source[source])) {
-                baseLayerSource = new ol.source[source]({
-                    crossOrigin: 'anonymous',
-                    ...sourceOptions
-                });
-            } else {
-                console.error('Unknown map provider type: ', source);
-                throw new Error('map.provider is invalid')
-            }
+                if (layerHelper) {
+                    const layerWithSource = layerHelper.configure(source);
 
-            this.olEvents.push(baseLayerSource.on('tileloaderror', function(event) {
-                const MaxRetry = 3;
-                const { tile } = event;
-
-                if (tile) {
-                    tile._retryCount = (tile._retryCount || 0) + 1;
-                    if (tile._retryCount <= MaxRetry) {
-                        console.warn(`Tile error retry: ${tile._retryCount} of ${MaxRetry}`, tile.src_);
-                        _.defer(() => {
-                            tile.load();
-                        })
+                    if (_.isFunction(layerHelper.addEvents)) {
+                        this.olEvents.concat(layerHelper.addEvents(map, layerWithSource, handlers));
                     }
-                }
-            }))
 
-            map.addLayer(new ol.layer.Tile({ source: baseLayerSource }));
-            if (below) {
-                map.addLayer(below.layer);
-            }
-            map.addLayer(cluster.layer)
-            if (above) {
-                map.addLayer(above.layer);
-            }
+                    layersWithSources[layerId] = layerWithSource;
+                    map.addLayer(layerWithSource.layer);
+                }
+            });
+
+            this.configureEvents(map);
 
             const view = new ol.View(this.getDefaultViewParameters());
             this.olEvents.push(view.on('change:center', (event) => this.props.onPan(event)));
@@ -488,159 +385,13 @@ define([
 
             map.setView(view);
 
-            return { map, cluster, baseLayerSource, below, above }
+            return { map, layersWithSources: { base, ...layersWithSources }}
         },
 
-        configureAncillary() {
-            const createLayer = type => {
-                const source = new ol.source.Vector({ features: [] });
-                const layer = new ol.layer.Vector({
-                    id: `${type}Layer`,
-                    source,
-                    renderBuffer: 500,
-                    updateWhileInteracting: true,
-                    updateWhileAnimating: true,
-                    style: ancillary => this._ancillaryStyle(ancillary)
-                });
-                return { source, layer }
-            }
-
-            return {
-                below: createLayer('below'),
-                above: createLayer('above')
-            };
-        },
-
-        configureCluster() {
-            const source = new ol.source.Vector({ features: [] });
-            const clusterSource = new MultiPointCluster({
-                distance: Math.max(FEATURE_CLUSTER_HEIGHT, FEATURE_HEIGHT) / 2,
-                source
-            });
-            const layer = new ol.layer.Vector({
-                id: 'elementsLayer',
-                style: cluster => this.clusterStyle(cluster),
-                source: clusterSource
-            });
-
-            return { source, clusterSource, layer }
-        },
-
-        clusterStyle(cluster, options = { selected: false }) {
-            const count = cluster.get('count');
-            const selectionState = cluster.get('selectionState') || 'none';
-            const selected = options.selected || selectionState !== 'none';
-
-            if (count > 1) {
-                return this._clusterStyle(cluster, { selected });
-            } else {
-                return this._featureStyle(cluster.get('features')[0], { selected })
-            }
-        },
-
-        _featureStyle(feature, { selected = false } = {}) {
-            const isSelected = selected || feature.get('selected');
-            const extensionStyles = feature.get('styles')
-
-            if (extensionStyles) {
-                const { normal: normalStyle, selected: selectedStyle } = extensionStyles;
-                let style;
-                if (normalStyle.length && (!selected || !selectedStyle.length)) {
-                    style = normalStyle;
-                } else if (selectedStyle.length && selected) {
-                    style = selectedStyle;
-                }
-
-                if (style) {
-                    return style;
-                }
-            }
-            return [new ol.style.Style({
-                image: new ol.style.Icon({
-                    src: feature.get(isSelected ? 'iconUrlSelected' : 'iconUrl'),
-                    imgSize: feature.get('iconSize'),
-                    scale: 1 / feature.get('pixelRatio'),
-                    anchor: feature.get('iconAnchor')
-                })
-            })]
-        },
-
-        _ancillaryStyle(ancillary) {
-            const extensionStyles = ancillary.get('styles');
-            if (extensionStyles) {
-                const { normal } = extensionStyles;
-                if (normal.length) {
-                    return normal;
-                }
-            }
-        },
-
-        _clusterStyle(cluster, { selected = false } = {}) {
-            var count = cluster.get('count'),
-                selectionState = cluster.get('selectionState') || 'none',
-                radius = Math.min(count || 0, FEATURE_CLUSTER_HEIGHT / 2) + 10,
-                unselectedFill = 'rgba(241,59,60, 0.8)',
-                unselectedStroke = '#AD2E2E',
-                stroke = selected ? '#08538B' : unselectedStroke,
-                strokeWidth = Math.round(radius * 0.1),
-                textStroke = stroke,
-                fill = selected ? 'rgba(0,112,195, 0.8)' : unselectedFill;
-
-            if (selected && selectionState === 'some') {
-                fill = unselectedFill;
-                textStroke = unselectedStroke;
-                strokeWidth *= 2;
-            }
-
-            return [new ol.style.Style({
-                image: new ol.style.Circle({
-                    radius: radius,
-                    stroke: new ol.style.Stroke({
-                        color: stroke,
-                        width: strokeWidth
-                    }),
-                    fill: new ol.style.Fill({
-                        color: fill
-                    })
-                }),
-                text: new ol.style.Text({
-                    text: count.toString(),
-                    font: `bold condensed ${radius}px sans-serif`,
-                    textAlign: 'center',
-                    fill: new ol.style.Fill({
-                        color: '#fff',
-                    }),
-                    stroke: new ol.style.Stroke({
-                        color: textStroke,
-                        width: 2
-                    })
-                })
-            })];
-        },
-
-        configureEvents({ map, cluster }) {
+        configureEvents(map) {
             var self = this;
 
-            // Feature Selection
-            const selectInteraction = new ol.interaction.Select({
-                condition: ol.events.condition.click,
-                layers: [cluster.layer],
-                style: cluster => this.clusterStyle(cluster, { selected: true })
-            });
 
-            this.olEvents.push(selectInteraction.on('select', function(e) {
-                var clusters = e.target.getFeatures().getArray(),
-                    elements = { vertices: [], edges: [] };
-
-                clusters.forEach(cluster => {
-                    cluster.get('features').forEach(feature => {
-                        const el = feature.get('element');
-                        const key = el.type === 'vertex' ? 'vertices' : 'edges';
-                        elements[key].push(el.id);
-                    })
-                })
-                self.props.onSelectElements(elements);
-            }));
 
             this.olEvents.push(map.on('click', function(event) {
                 self.props.onTap(event);
@@ -651,34 +402,6 @@ define([
                     self.props.onContextTap(event);
                 }
             }));
-
-            this.olEvents.push(cluster.clusterSource.on('change', _.debounce(function() {
-                var selected = selectInteraction.getFeatures(),
-                    clusters = this.getFeatures(),
-                    newSelection = [],
-                    isSelected = feature => feature.get('selected');
-
-                clusters.forEach(cluster => {
-                    var innerFeatures = cluster.get('features');
-                    if (_.any(innerFeatures, isSelected)) {
-                        newSelection.push(cluster);
-                        if (_.all(innerFeatures, isSelected)) {
-                            cluster.set('selectionState', 'all');
-                        } else {
-                            cluster.set('selectionState', 'some');
-                        }
-                    } else {
-                        cluster.unset('selectionState');
-                    }
-                })
-
-                selected.clear()
-                if (newSelection.length) {
-                    selected.extend(newSelection)
-                }
-            }, 100)));
-
-            map.addInteraction(selectInteraction);
 
             const viewport = map.getViewport();
             this.domEvent(viewport, 'contextmenu', function(event) {
@@ -751,24 +474,18 @@ define([
          * @property {object} product The map product
          * @property {object} ol The [Openlayers Api](http://openlayers.org/en/latest/apidoc/)
          * @property {object} map [map](http://openlayers.org/en/latest/apidoc/ol.Map.html) instance
-         * @property {object} cluster
+         * @property {object} cluster TODO deprecate + add layersWithSources
          * @property {object} cluster.clusterSource [multiPointCluster](https://github.com/visallo/visallo/blob/master/web/plugins/map-product/src/main/resources/org/visallo/web/product/map/multiPointCluster.js) that implements the [`ol.source.Cluster`](http://openlayers.org/en/latest/apidoc/ol.source.Cluster.html) interface to cluster the `source` features.
          * @property {object} cluster.source The [`ol.source.Vector`](http://openlayers.org/en/latest/apidoc/ol.source.Vector.html) source of all map pins before clustering.
-         * @property {object} above The layer/source above the cluster
-         * @property {object} above.layer The layer above the cluster
-         * @property {object} above.source The source above the cluster
-         * @property {object} below The layer/source below the cluster
-         * @property {object} below.layer The layer below the cluster
-         * @property {object} below.source The source below the cluster
          * @property {object} cluster.layer The [`ol.layer.Vector`](http://openlayers.org/en/latest/apidoc/ol.layer.Vector.html) pin layer
          */
         getInjectedToolProps() {
             const { clearCaches: requestUpdate, product } = this.props;
-            const { map, cluster, above, below } = this.state;
+            const { map, layersWithSources } = this.state;
             let props = {};
 
-            if (map && cluster) {
-                props = { product, ol, map, cluster, above, below, requestUpdate }
+            if (map && layersWithSources) {
+                props = { product, ol, map, cluster: layersWithSources.cluster, layersWithSources, requestUpdate }
             }
 
             return props;
@@ -776,19 +493,5 @@ define([
     })
 
     return OpenLayers;
-
-    function getRadiusFromStyles(styles) {
-        for (let i = styles.length - 1; i >= 0; i--) {
-            if (_.isFunction(styles[i].getImage)) {
-                const image = styles[i].getImage();
-                const radius = image && _.isFunction(image.getRadius) && image.getRadius();
-
-                if (radius) {
-                    const nodeRadius = radius / devicePixelRatio
-                    return nodeRadius;
-                }
-            }
-        }
-    }
 })
 

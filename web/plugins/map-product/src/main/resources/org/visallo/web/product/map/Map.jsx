@@ -71,8 +71,7 @@ define([
      * @param {org.visallo.map.geometry~canHandle} canHandle Function that
      * determines if geometry function applies for elements.
      * @param {org.visallo.map.geometry~geometry} geometry Geometry to use for feature
-     * @param {string} [position=below] Whether this feature gets placed in
-     * layer `above` or `below` the clustered layer.
+     * @param {string} [layerPosition=below] The id of the existing layer this feature is placed in
      * @example
      * require(['openlayers'], function(ol) {
      *     registry.registerExtension('org.visallo.map.geometry', {
@@ -90,7 +89,7 @@ define([
         'Change map geometries using OpenLayers',
         function(e) {
             return _.isFunction(e.canHandle) && _.isFunction(e.geometry) &&
-                (!e.position || (e.position === 'above' || e.position === 'below'))
+                (!e.layerPosition || _.isString(e.layerPosition))
         },
         'http://docs.visallo.org/extension-points/front-end/mapGeometry'
     );
@@ -112,16 +111,16 @@ define([
         render() {
             const { viewport, generatePreview } = this.state;
             const { product, onSelectElements, onUpdatePreview } = this.props;
-            const { clusterFeatures, ancillaryFeatures } = this.mapElementsToFeatures();
+            const { source: baseSource, sourceOptions: baseSourceOptions, ...config } = mapConfig();
 
             return (
                 <div style={{height:'100%'}} ref={r => {this.wrap = r}}>
                 <OpenLayers
                     ref={c => {this._openlayers = c}}
                     product={product}
-                    features={clusterFeatures}
-                    below={ancillaryFeatures.below}
-                    above={ancillaryFeatures.above}
+                    baseSource={baseSource}
+                    baseSourceOptions={baseSourceOptions}
+                    sourcesByLayerId={this.mapElementsToSources()}
                     viewport={viewport}
                     generatePreview={generatePreview}
                     panelPadding={this.props.panelPadding}
@@ -134,7 +133,7 @@ define([
                     onMouseOver={this.onMouseOver}
                     onMouseOut={this.onMouseOut}
                     onUpdatePreview={onUpdatePreview.bind(this, this.props.product.id)}
-                    {...mapConfig()}
+                    {...config}
                 />
                 </div>
             )
@@ -216,7 +215,10 @@ define([
                 const features = cluster.get('features');
                 if (features) {
                     features.forEach(f => {
-                        vertexIds.push(f.getId());
+                        const element = f.get('element');
+                        if (element && element.type === 'vertex') {
+                            vertexIds.push(element.id);
+                        }
                     })
                 }
             })
@@ -250,7 +252,7 @@ define([
         getGeometry(edgeInfo, element, ontology) {
             const { registry } = this.props;
             const calculatedGeometry = registry['org.visallo.map.geometry']
-                .reduce((geometries, { canHandle, geometry, position }) => {
+                .reduce((geometries, { canHandle, geometry, layerPosition }) => {
                     /**
                      * Decide which elements to apply geometry
                      *
@@ -278,7 +280,7 @@ define([
                         if (geo) {
                             geometries.push({
                                 geometry: geo,
-                                position
+                                layerPosition
                             });
                         }
                     }
@@ -349,7 +351,7 @@ define([
             }
         },
 
-        mapElementsToFeatures() {
+        mapElementsToSources() {
             const { product } = this.props;
             const { extendedData } = product;
             if (!extendedData || !extendedData.vertices) return [];
@@ -357,9 +359,17 @@ define([
             const elementsSelectedById = { ..._.indexBy(this.props.selection.vertices), ..._.indexBy(this.props.selection.edges) };
             const elements = Object.values(vertices).concat(Object.values(edges));
             const geoLocationProperties = _.groupBy(this.props.ontologyProperties, 'dataType').geoLocation;
+            const pushFeaturesToSource = (source, feature) => {
+                if (!sources[source]) {
+                    sources[source] = { features: []};
+                } else if (!sources[source].features) {
+                    sources[source].features = [];
+                }
 
-            const ancillaryFeatures = { above: [], below: [] }
-            const clusterFeatures = [];
+                sources[source].features.push(feature);
+            };
+
+            const sources = {};
 
             elements.forEach(el => {
                 const extendedDataType = extendedData[el.type === 'vertex' ? 'vertices' : 'edges'];
@@ -368,16 +378,17 @@ define([
                 const styles = this.getStyles(edgeInfo, el, ontology);
                 const geometryOverride = this.getGeometry(edgeInfo, el, ontology)
                 const geometry = geometryOverride && geometryOverride.geometry;
+                const layerPosition = geometryOverride && geometryOverride.layerPosition;
 
                 if (extendedData.vertices[el.id] && extendedData.vertices[el.id].ancillary) {
-                    const position = geometryOverride && geometryOverride.position;
-                    ancillaryFeatures[position || 'below'].push({
+                    pushFeaturesToSource((layerPosition || 'ancillary'), {
                         id: el.id,
                         element: el,
                         selected,
                         styles,
                         geometry
-                    })
+                    });
+
                     return;
                 }
 
@@ -407,7 +418,7 @@ define([
                     }),
                     iconUrlSelected = `${iconUrl}&selected=true`;
 
-                clusterFeatures.push({
+                pushFeaturesToSource((layerPosition || 'cluster'), {
                     id: el.id,
                     element: el,
                     selected,
@@ -419,10 +430,10 @@ define([
                     styles,
                     geometry,
                     geoLocations
-                })
+                });
             })
 
-            return { ancillaryFeatures, clusterFeatures };
+            return sources;
         },
 
         legacyListeners(map) {
