@@ -493,7 +493,10 @@ define([
 
         configureAncillary() {
             const createLayer = type => {
-                const source = new ol.source.Vector({ features: [] });
+                const source = new ol.source.Vector({
+                    features: [],
+                    wrapX: false
+                });
                 const layer = new ol.layer.Vector({
                     id: `${type}Layer`,
                     source,
