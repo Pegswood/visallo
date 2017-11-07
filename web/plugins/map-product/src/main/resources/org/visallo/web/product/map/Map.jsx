@@ -71,7 +71,7 @@ define([
      * @param {org.visallo.map.geometry~canHandle} canHandle Function that
      * determines if geometry function applies for elements.
      * @param {org.visallo.map.geometry~geometry} geometry Geometry to use for feature
-     * @param {string} [layerPosition=below] The id of the existing layer this feature is placed in
+     * @param {string} [layerPosition=below] The id of the existing layer this feature is placed in //TODO
      * @example
      * require(['openlayers'], function(ol) {
      *     registry.registerExtension('org.visallo.map.geometry', {
@@ -89,7 +89,7 @@ define([
         'Change map geometries using OpenLayers',
         function(e) {
             return _.isFunction(e.canHandle) && _.isFunction(e.geometry) &&
-                (!e.layerPosition || _.isString(e.layerPosition))
+                (!e.layerPosition || _.isString(e.layerPosition)) //TODO
         },
         'http://docs.visallo.org/extension-points/front-end/mapGeometry'
     );
@@ -252,7 +252,7 @@ define([
         getGeometry(edgeInfo, element, ontology) {
             const { registry } = this.props;
             const calculatedGeometry = registry['org.visallo.map.geometry']
-                .reduce((geometries, { canHandle, geometry, layerPosition }) => {
+                .reduce((geometries, { canHandle, geometry, layer }) => {
                     /**
                      * Decide which elements to apply geometry
                      *
@@ -280,7 +280,7 @@ define([
                         if (geo) {
                             geometries.push({
                                 geometry: geo,
-                                layerPosition
+                                layer
                             });
                         }
                     }
@@ -359,14 +359,14 @@ define([
             const elementsSelectedById = { ..._.indexBy(this.props.selection.vertices), ..._.indexBy(this.props.selection.edges) };
             const elements = Object.values(vertices).concat(Object.values(edges));
             const geoLocationProperties = _.groupBy(this.props.ontologyProperties, 'dataType').geoLocation;
-            const pushFeaturesToSource = (source, feature) => {
-                if (!sources[source]) {
-                    sources[source] = { features: []};
-                } else if (!sources[source].features) {
-                    sources[source].features = [];
+            const pushFeaturesToSource = ({ id, type }, feature) => {
+                if (!sources[id]) {
+                    sources[id] = { features: [], type };
+                } else if (!sources[id].features) {
+                    sources[id].features = [];
                 }
 
-                sources[source].features.push(feature);
+                sources[id].features.push(feature);
             };
 
             const sources = {};
@@ -378,10 +378,10 @@ define([
                 const styles = this.getStyles(edgeInfo, el, ontology);
                 const geometryOverride = this.getGeometry(edgeInfo, el, ontology)
                 const geometry = geometryOverride && geometryOverride.geometry;
-                const layerPosition = geometryOverride && geometryOverride.layerPosition;
+                const layer = geometryOverride && geometryOverride.layer || {};
 
                 if (extendedData.vertices[el.id] && extendedData.vertices[el.id].ancillary) {
-                    pushFeaturesToSource((layerPosition || 'ancillary'), {
+                    pushFeaturesToSource({ id: 'ancillary', type: 'ancillary', ...layer }, {
                         id: el.id,
                         element: el,
                         selected,
@@ -418,7 +418,7 @@ define([
                     }),
                     iconUrlSelected = `${iconUrl}&selected=true`;
 
-                pushFeaturesToSource((layerPosition || 'cluster'), {
+                pushFeaturesToSource({ id: 'cluster', type: 'cluster', ...layer }, {
                     id: el.id,
                     element: el,
                     selected,

@@ -9,8 +9,8 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
     };
 
     const layers = {
-        base: {
-            configure(source, sourceOptions) {
+        tile: {
+            configure(id, source, sourceOptions) {
                 let baseLayerSource;
 
                 if (source in ol.source && _.isFunction(ol.source[source])) {
@@ -25,7 +25,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
 
                 const layer = new ol.layer.Tile({
                     ...DEFAULT_LAYER_CONFIG,
-                    id: 'base',
+                    id,
                     sortable: false,
                     source: baseLayerSource
                 });
@@ -54,7 +54,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
         },
 
         cluster: {
-            configure() {
+            configure(id) {
                 const source = new ol.source.Vector({ features: [] });
                 const clusterSource = new MultiPointCluster({
                     distance: Math.max(FEATURE_CLUSTER_HEIGHT, FEATURE_HEIGHT) / 2,
@@ -62,7 +62,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                 });
                 const layer = new ol.layer.Vector({
                     ...DEFAULT_LAYER_CONFIG,
-                    id: 'cluster',
+                    id,
                     style: cluster => this.style(cluster),
                     source: clusterSource
                 });
@@ -142,14 +142,14 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
         },
 
         ancillary: {
-            configure() {
+            configure(id) {
                 const source = new ol.source.Vector({
                     features: [],
                     wrapX: false
                 });
                 const layer = new ol.layer.Vector({
                     ...DEFAULT_LAYER_CONFIG,
-                    id: 'ancillary',
+                    id,
                     sortable: false,
                     toggleable: false,
                     source,

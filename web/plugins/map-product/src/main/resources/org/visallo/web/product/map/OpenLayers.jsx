@@ -358,15 +358,15 @@ define([
             });
             const layersWithSources = {};
 
-            const base = layerHelpers.base.configure(baseSource, baseSourceOptions);
-            this.olEvents.concat(layerHelpers.base.addEvents(map, base, handlers));
+            const base = layerHelpers.tile.configure('base', baseSource, baseSourceOptions);
+            this.olEvents.concat(layerHelpers.tile.addEvents(map, base, handlers));
             map.addLayer(base.layer);
 
-            _.mapObject(sourcesByLayerId, (source, layerId) => {
-                const layerHelper = layerHelpers[layerId];
+            _.mapObject(sourcesByLayerId, ({ type, features }, layerId) => {
+                const layerHelper = layerHelpers[type];
 
                 if (layerHelper) {
-                    const layerWithSource = layerHelper.configure(source);
+                    const layerWithSource = layerHelper.configure(layerId);
 
                     if (_.isFunction(layerHelper.addEvents)) {
                         this.olEvents.concat(layerHelper.addEvents(map, layerWithSource, handlers));
