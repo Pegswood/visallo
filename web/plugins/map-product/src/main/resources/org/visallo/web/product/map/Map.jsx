@@ -89,9 +89,30 @@ define([
         'Change map geometries using OpenLayers',
         function(e) {
             return _.isFunction(e.canHandle) && _.isFunction(e.geometry) &&
-                (!e.layerPosition || _.isString(e.layerPosition)) //TODO
+                (!e.layer || (_.isObject(e.layer) & (e.layer.id) && e.layer.type))
         },
         'http://docs.visallo.org/extension-points/front-end/mapGeometry'
+    );
+
+
+    /**
+     * Extension to initialize [layers](http://openlayers.org/en/latest/apidoc/ol.layer.Layer.html) on the map
+     *
+     * TODO
+     */
+    registry.documentExtensionPoint('org.visallo.map.layer',
+        'Initialize layers on the map',
+        function(e) {
+            return (_.isString(e.id)
+                && _.isString(e.type)
+                && (!e.configure || _.isFunction(e.configure))
+                && (!e.addEvents || _.isFunction(e.addEvents))
+                && (!e.update || _.isFunction(e.update))
+                && (!e.shouldUpdate || _.isFunction(e.shouldUpdate))
+                && (!e.options || _.isObject(e.options))
+            );
+        },
+        'http://docs.visallo.org/extension-points/front-end/mapGeometry' //TODO
     );
 
     const Map = createReactClass({
@@ -110,8 +131,9 @@ define([
 
         render() {
             const { viewport, generatePreview } = this.state;
-            const { product, onSelectElements, onUpdatePreview } = this.props;
+            const { product, onSelectElements, onUpdatePreview, registry } = this.props;
             const { source: baseSource, sourceOptions: baseSourceOptions, ...config } = mapConfig();
+            const layerExtensions = _.indexBy(registry['org.visallo.map.layer'], 'id');
 
             return (
                 <div style={{height:'100%'}} ref={r => {this.wrap = r}}>
@@ -121,6 +143,7 @@ define([
                     baseSource={baseSource}
                     baseSourceOptions={baseSourceOptions}
                     sourcesByLayerId={this.mapElementsToSources()}
+                    layerExtensions={layerExtensions}
                     viewport={viewport}
                     generatePreview={generatePreview}
                     panelPadding={this.props.panelPadding}
@@ -461,6 +484,7 @@ define([
 
     return RegistryInjectorHOC(Map, [
         'org.visallo.map.style',
-        'org.visallo.map.geometry'
+        'org.visallo.map.geometry',
+        'org.visallo.map.layer'
     ])
 });

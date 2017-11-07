@@ -55,7 +55,7 @@ define([
 
         componentDidUpdate(prevProps, prevState) {
             const { map, layersWithSources } = this.state;
-            const { sourcesByLayerId } = this.props;
+            const { sourcesByLayerId, layerExtensions } = this.props;
 
             let changed = false;
             let fit = [];
@@ -64,18 +64,19 @@ define([
 
             layers.forEach(layer => {
                 const layerId = layer.get('id');
-                const layerHelper = layerHelpers[layerId];
+                const layerType = layer.get('type');
+                const layerHelper = layerHelpers[layerType] || layerExtensions[layerId];
                 const layerWithSources = layersWithSources[layerId];
-                const newSource = sourcesByLayerId[layerId];
-                const oldSource = prevProps.sourcesByLayerId[layerId];
+                const nextSource = sourcesByLayerId[layerId];
+                const prevSource = prevProps.sourcesByLayerId[layerId];
 
-                if (layerHelper && layerWithSources) {
+                if (layerHelper && layerWithSources && (nextSource || prevSource)) {
                     const shouldUpdate = _.isFunction(layerHelper.shouldUpdate)
-                        ? layerHelper.shouldUpdate(newSource, oldSource, layerWithSources)
+                        ? layerHelper.shouldUpdate(nextSource, prevSource, layerWithSources)
                         : true;
 
                     if (shouldUpdate && _.isFunction(layerHelper.update)) {
-                        const { changed: c, fitFeatures } = layerHelper.update(newSource, layerWithSources);
+                        const { changed: c = true, fitFeatures = [] } = layerHelper.update(nextSource, layerWithSources) || {};
                         changed = changed || c;
                         if (fitFeatures) fit.push(...fitFeatures)
                     }
@@ -348,7 +349,7 @@ define([
         },
 
         configureMap() {
-            const { baseSource, baseSourceOptions = {}, sourcesByLayerId, generatePreview, ...handlers } = this.props;
+            const { baseSource, baseSourceOptions = {}, sourcesByLayerId, generatePreview, layerExtensions, ...handlers } = this.props;
             const map = new ol.Map({
                 loadTilesWhileInteracting: true,
                 keyboardEventTarget: document,
@@ -358,22 +359,35 @@ define([
             });
             const layersWithSources = {};
 
-            const base = layerHelpers.tile.configure('base', baseSource, baseSourceOptions);
+            const base = layerHelpers.tile.configure('base', { source: baseSource, sourceOptions: baseSourceOptions });
             this.olEvents.concat(layerHelpers.tile.addEvents(map, base, handlers));
             map.addLayer(base.layer);
 
-            _.mapObject(sourcesByLayerId, ({ type, features }, layerId) => {
-                const layerHelper = layerHelpers[type];
+            const initializeLayer = (layerHelper, layerId) => {
+                const layerWithSource = layerHelper.configure(layerId);
 
-                if (layerHelper) {
-                    const layerWithSource = layerHelper.configure(layerId);
+                if (_.isFunction(layerHelper.addEvents)) {
+                    this.olEvents.concat(layerHelper.addEvents(map, layerWithSource, handlers));
+                }
 
-                    if (_.isFunction(layerHelper.addEvents)) {
-                        this.olEvents.concat(layerHelper.addEvents(map, layerWithSource, handlers));
-                    }
+                layersWithSources[layerId] = layerWithSource;
+                map.addLayer(layerWithSource.layer);
+            };
 
-                    layersWithSources[layerId] = layerWithSource;
-                    map.addLayer(layerWithSource.layer);
+            _.mapObject(layerExtensions, (e, layerId) => {
+                const initializer = e.type && layerHelpers[e.type] || e;
+                initializeLayer(initializer, e.id, e.options)
+            });
+
+            _.mapObject(sourcesByLayerId, ({ type }, layerId) => {
+                if (layersWithSources[layerId]) return;
+
+                const initializer = layerHelpers[type];
+
+                if (initializer) {
+                    initializeLayer(initializer, layerId);
+                } else {
+                    console.warn('Sources present for layer: ' + layerId + ', but no layer type defined for: ' + type);
                 }
             });
 

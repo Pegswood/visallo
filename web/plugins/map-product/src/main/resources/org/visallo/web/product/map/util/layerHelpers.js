@@ -10,7 +10,8 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
 
     const layers = {
         tile: {
-            configure(id, source, sourceOptions) {
+            configure(id, options = {}) {
+                const { source, sourceOptions = {}, ...config } = options;
                 let baseLayerSource;
 
                 if (source in ol.source && _.isFunction(ol.source[source])) {
@@ -26,8 +27,11 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                 const layer = new ol.layer.Tile({
                     ...DEFAULT_LAYER_CONFIG,
                     id,
+                    label: 'Base',
+                    type: 'tile',
                     sortable: false,
-                    source: baseLayerSource
+                    source: baseLayerSource,
+                    ...config
                 });
 
                 return { source: baseLayerSource, layer }
@@ -54,7 +58,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
         },
 
         cluster: {
-            configure(id) {
+            configure(id, options = {}) {
                 const source = new ol.source.Vector({ features: [] });
                 const clusterSource = new MultiPointCluster({
                     distance: Math.max(FEATURE_CLUSTER_HEIGHT, FEATURE_HEIGHT) / 2,
@@ -63,8 +67,11 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                 const layer = new ol.layer.Vector({
                     ...DEFAULT_LAYER_CONFIG,
                     id,
+                    label: 'Cluster',
+                    type: 'cluster',
                     style: cluster => this.style(cluster),
-                    source: clusterSource
+                    source: clusterSource,
+                    ...options
                 });
 
                 return { source, clusterSource, layer }
@@ -142,7 +149,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
         },
 
         ancillary: {
-            configure(id) {
+            configure(id, options = {}) {
                 const source = new ol.source.Vector({
                     features: [],
                     wrapX: false
@@ -150,13 +157,15 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                 const layer = new ol.layer.Vector({
                     ...DEFAULT_LAYER_CONFIG,
                     id,
+                    type: 'ancillary',
                     sortable: false,
                     toggleable: false,
                     source,
                     renderBuffer: 500,
                     updateWhileInteracting: true,
                     updateWhileAnimating: true,
-                    style: ancillary => this.style(ancillary)
+                    style: ancillary => this.style(ancillary),
+                    ...options
                 });
 
                 return { source, layer }
