@@ -1,0 +1,137 @@
+.org-visallo-map {
+  .map-layers {
+    height: 80vh;
+    max-height: 500px;
+    width: 300px;
+
+    @blue-color: #0088cc;
+
+      .rule-list {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        widht: 100%;
+
+        .buttons {
+          display: flex;
+          justify-content: space-between;
+
+          .toggle-all input {
+            margin: 0.5em;
+          }
+
+          .show-all {
+            color: @blue-color;
+            cursor: pointer;
+            transition: color 0.2s linear;
+            &:hover {
+              color: darken(@blue-color, 20%);
+            }
+          }
+
+          .create-rule {
+            padding: 0 0.5em;
+            cursor: pointer;
+            color: #999;
+            font-size: 14px;
+            font-weight: bold;
+            font-variant: small-caps;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+            transition: color 0.2s linear;
+
+            &:hover {
+              color: @blue-color;
+            }
+          }
+        }
+
+        .flex-fix {
+          flex: 1 1 auto;
+        }
+
+        .ReactVirtualized__List:focus {
+          outline: none;
+        }
+
+        .empty {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+
+          p {
+            font-size: 16px;
+            color: #999;
+          }
+        }
+      }
+
+  }
+}
+
+.rule-list-item {
+  display: flex;
+  align-items: center;
+  height: 27px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+
+  input {
+    flex: 0 0 auto;
+    margin: 0.5em;
+  }
+
+  .rule-title {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    overflow: hidden;
+    margin: 0.5em;
+    cursor: pointer;
+
+    span {
+      line-height: initial;
+    }
+
+    .title {
+      font-size: 14px;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .subtitle {
+      font-size: x-small;
+      color: #aaa;
+    }
+  }
+  .rule-icon {
+    display: inline-block;
+    background-size: cover;
+    flex: 0 0 auto;
+    opacity: 0.1;
+    margin: 0.5em;
+
+    &.drag-handle {
+      display: inline-block;
+      margin-right: 1em;
+      background-image: url(../../../../../../img/glyphicons/glyphicons_157_show_lines@2x.png);
+      height: 10px;
+      width: 15px;
+      cursor: ns-resize;
+    }
+  }
+
+  &:hover {
+    background: #fcfcfc;
+  }
+
+  &.sorting {
+    background: rgba(255,255,255,0.8);
+    box-shadow: 2px 2px 2px 1px rgba(0,0,0,.2);
+
+    .rule-icon.rule-edit {
+      visibility: hidden
+    }
+  }
+}

@@ -182,6 +182,47 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
             },
 
             update: syncFeatures
+        },
+
+        geoShape: {
+            configure(id, options = {}) {
+                const source = new ol.source.Vector({ features: [] });
+                const layer = new ol.layer.Vector({
+                    ...DEFAULT_LAYER_CONFIG,
+                    id,
+                    type: 'geoShape',
+                    source,
+                    ...options
+                });
+
+                return { source, layer };
+            },
+
+            update(source, { source: olSource, layer }) {
+                const { element, features, selected, styles } = source;
+                const nextFeatures = [];
+                let changed = false;
+                let fitFeatures;
+
+                if (element !== layer.get('element') || !olSource.getFeatures().length) {
+                    features.forEach(feature => {
+                        const geoShapeFeatures = (new ol.format.GeoJSON()).readFeatures(feature.geoShape);
+
+                        geoShapeFeatures.forEach((f, i) => {
+                            f.setId(feature.id + ':' + i);
+                            nextFeatures.push(f);
+                        });
+                    });
+
+                    olSource.clear();
+                    olSource.addFeatures(nextFeatures);
+
+                    changed = true;
+                    fitFeatures = nextFeatures;
+                }
+
+                return { changed, fitFeatures };
+            }
         }
     };
 
@@ -321,6 +362,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                                 return true
                             }
                             return false;
+
                         })
                         if (diff) {
                             changed = true
@@ -367,7 +409,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
     }
 
     return {
-        ...layers,
+        byType: layers,
         styles
     }
 })

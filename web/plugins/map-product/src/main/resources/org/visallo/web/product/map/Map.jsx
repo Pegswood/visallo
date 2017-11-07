@@ -89,7 +89,7 @@ define([
         'Change map geometries using OpenLayers',
         function(e) {
             return _.isFunction(e.canHandle) && _.isFunction(e.geometry) &&
-                (!e.layer || (_.isObject(e.layer) & (e.layer.id) && e.layer.type))
+                (!e.layer || (_.isObject(e.layer) & (_.isString(e.layer.id)) && _.isString(e.layer.type)))
         },
         'http://docs.visallo.org/extension-points/front-end/mapGeometry'
     );
@@ -112,7 +112,7 @@ define([
                 && (!e.options || _.isObject(e.options))
             );
         },
-        'http://docs.visallo.org/extension-points/front-end/mapGeometry' //TODO
+        'http://docs.visallo.org/extension-points/front-end/mapLayers' //TODO
     );
 
     const Map = createReactClass({
@@ -136,27 +136,27 @@ define([
             const layerExtensions = _.indexBy(registry['org.visallo.map.layer'], 'id');
 
             return (
-                <div style={{height:'100%'}} ref={r => {this.wrap = r}}>
-                <OpenLayers
-                    ref={c => {this._openlayers = c}}
-                    product={product}
-                    baseSource={baseSource}
-                    baseSourceOptions={baseSourceOptions}
-                    sourcesByLayerId={this.mapElementsToSources()}
-                    layerExtensions={layerExtensions}
-                    viewport={viewport}
-                    generatePreview={generatePreview}
-                    panelPadding={this.props.panelPadding}
-                    clearCaches={this.requestUpdateDebounce}
-                    onTap={this.onTap}
-                    onPan={this.onViewport}
-                    onZoom={this.onViewport}
-                    onContextTap={this.onContextTap}
-                    onSelectElements={onSelectElements}
-                    onMouseOver={this.onMouseOver}
-                    onMouseOut={this.onMouseOut}
-                    onUpdatePreview={onUpdatePreview.bind(this, this.props.product.id)}
-                    {...config}
+                <div className="org-visallo-map" style={{height:'100%'}} ref={r => {this.wrap = r}}>
+                    <OpenLayers
+                        ref={c => {this._openlayers = c}}
+                        product={product}
+                        baseSource={baseSource}
+                        baseSourceOptions={baseSourceOptions}
+                        sourcesByLayerId={this.mapElementsToSources()}
+                        layerExtensions={layerExtensions}
+                        viewport={viewport}
+                        generatePreview={generatePreview}
+                        panelPadding={this.props.panelPadding}
+                        clearCaches={this.requestUpdateDebounce}
+                        onTap={this.onTap}
+                        onPan={this.onViewport}
+                        onZoom={this.onViewport}
+                        onContextTap={this.onContextTap}
+                        onSelectElements={onSelectElements}
+                        onMouseOver={this.onMouseOver}
+                        onMouseOut={this.onMouseOut}
+                        onUpdatePreview={onUpdatePreview.bind(this, this.props.product.id)}
+                        {...config}
                 />
                 </div>
             )
@@ -382,9 +382,9 @@ define([
             const elementsSelectedById = { ..._.indexBy(this.props.selection.vertices), ..._.indexBy(this.props.selection.edges) };
             const elements = Object.values(vertices).concat(Object.values(edges));
             const geoLocationProperties = _.groupBy(this.props.ontologyProperties, 'dataType').geoLocation;
-            const pushFeaturesToSource = ({ id, type }, feature) => {
+            const pushFeatureToSource = ({ id, ...rest }, feature) => {
                 if (!sources[id]) {
-                    sources[id] = { features: [], type };
+                    sources[id] = { features: [], ...rest };
                 } else if (!sources[id].features) {
                     sources[id].features = [];
                 }
@@ -404,7 +404,7 @@ define([
                 const layer = geometryOverride && geometryOverride.layer || {};
 
                 if (extendedData.vertices[el.id] && extendedData.vertices[el.id].ancillary) {
-                    pushFeaturesToSource({ id: 'ancillary', type: 'ancillary', ...layer }, {
+                    pushFeatureToSource({ id: 'ancillary', type: 'ancillary', ...layer }, {
                         id: el.id,
                         element: el,
                         selected,
@@ -413,6 +413,28 @@ define([
                     });
 
                     return;
+                }
+
+
+                const geoShapePropertyKey = 'http://visallo.org/geo_data#84bea9ded0ce0c5024b7101c51595b87a2a28c8e'; //TODO generic
+                const geoShapeProperties = F.vertex.props(el, geoShapePropertyKey);
+
+                if (geoShapeProperties.length) {
+                    const sourceConfig = {
+                        id: el.id,
+                        type: 'geoShape',
+                        element: el,
+                        selected,
+                        styles
+                    };
+
+                    geoShapeProperties.forEach(geoShapeProp => {
+                        pushFeatureToSource(sourceConfig, {
+                            id: geoShapeProp.key,
+                            geoShape: geoShapeProp.value,
+                            element: el
+                        });
+                    });
                 }
 
                 const geoLocations = geoLocationProperties && geoLocationProperties.reduce((props, { title }) => {
@@ -441,7 +463,7 @@ define([
                     }),
                     iconUrlSelected = `${iconUrl}&selected=true`;
 
-                pushFeaturesToSource({ id: 'cluster', type: 'cluster', ...layer }, {
+                pushFeatureToSource({ id: 'cluster', type: 'cluster', ...layer }, {
                     id: el.id,
                     element: el,
                     selected,

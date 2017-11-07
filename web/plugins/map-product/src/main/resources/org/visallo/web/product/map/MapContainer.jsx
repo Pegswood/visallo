@@ -1,6 +1,7 @@
 define([
     'react-redux',
     'react-dom',
+    'configuration/plugins/registry',
     'data/web-worker/store/selection/actions',
     'data/web-worker/store/product/actions',
     'data/web-worker/store/product/selectors',
@@ -12,6 +13,7 @@ define([
 ], function(
     redux,
     ReactDom,
+    registry,
     selectionActions,
     productActions,
     productSelectors,
@@ -21,6 +23,17 @@ define([
     DroppableHOC,
     Map) {
     'use strict';
+
+    registry.registerExtension('org.visallo.product.toolbar.item', {
+        identifier: 'org-visallo-map-layers',
+        itemComponentPath: 'org/visallo/web/product/map/dist/MapLayersContainer',
+        placementHint: 'popover',
+        label: 'Layers',
+        canHandle: (product) => product.kind === 'org.visallo.web.product.map.MapWorkProduct',
+        initialize: () => {
+            //set initial order + opacity
+        }
+    });
 
     const mimeTypes = [VISALLO_MIMETYPES.ELEMENTS];
 

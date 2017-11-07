@@ -29,6 +29,7 @@ var VisalloAmdExternals = [
     'fast-json-patch',
     'updeep',
     'react',
+    'react-virtualized',
     'create-react-class',
     'prop-types',
     'react-dom',
@@ -89,7 +90,8 @@ module.exports = [
     }),
     Object.assign({}, baseConfig, {
         entry: {
-            Map: './MapContainer.jsx'
+            Map: './MapContainer.jsx',
+            MapLayersContainer: './layers/MapLayersContainer.jsx'
         },
         target: 'web'
     })

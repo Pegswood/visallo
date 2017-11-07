@@ -53,6 +53,20 @@ define([
             }
         },
 
+        componentWillReceiveProps(nextProps) {
+            const { sourcesByLayerId: prevSourcesByLayerId, product: prevProduct } = this.props;
+            const { sourcesByLayerId: nextSourcesByLayerId, product: nextProduct } = nextProps;
+            const { map, layersWithSources } = this.state;
+            const extendedDataKeys = ;
+            if (['vertices', 'edges'].some(key => nextProduct.extendedData[key] !== prevProduct.extendedData[key])) {
+                const deletedLayers = _.difference(Object.keys(nextSourcesByLayerId), Object.keys(prevSourcesByLayerId));
+
+                if (deletedLayers.length) {
+                    map.
+                }
+            }
+        },
+
         componentDidUpdate(prevProps, prevState) {
             const { map, layersWithSources } = this.state;
             const { sourcesByLayerId, layerExtensions } = this.props;
@@ -61,11 +75,12 @@ define([
             let fit = [];
 
             const layers = map.getLayers();
-
+            //TODO: delete old layers if missing in new sourcesByLayerId
             layers.forEach(layer => {
                 const layerId = layer.get('id');
+
                 const layerType = layer.get('type');
-                const layerHelper = layerHelpers[layerType] || layerExtensions[layerId];
+                const layerHelper = layerHelpers.byType[layerType] || layerExtensions[layerId];
                 const layerWithSources = layersWithSources[layerId];
                 const nextSource = sourcesByLayerId[layerId];
                 const prevSource = prevProps.sourcesByLayerId[layerId];
@@ -82,6 +97,13 @@ define([
                     }
                 }
             });
+
+            const extendedData = product.extendedData || {};
+            const prevExtendedData = prevProps.product.extendedData || {};
+            if (dataLayerGroup && extendedData.layerOrder !== prevExtendedData.layerOrder) {
+                dataChanged = true;
+            }
+
 
             if (fit.length) {
                 this.fit({ limitToFeatures: fit });
@@ -359,12 +381,12 @@ define([
             });
             const layersWithSources = {};
 
-            const base = layerHelpers.tile.configure('base', { source: baseSource, sourceOptions: baseSourceOptions });
-            this.olEvents.concat(layerHelpers.tile.addEvents(map, base, handlers));
+            const base = layerHelpers.byType.tile.configure('base', { source: baseSource, sourceOptions: baseSourceOptions });
+            this.olEvents.concat(layerHelpers.byType.tile.addEvents(map, base, handlers));
             map.addLayer(base.layer);
 
-            const initializeLayer = (layerHelper, layerId) => {
-                const layerWithSource = layerHelper.configure(layerId);
+            const initializeLayer = (layerHelper, layerId, options) => {
+                const layerWithSource = layerHelper.configure(layerId, options);
 
                 if (_.isFunction(layerHelper.addEvents)) {
                     this.olEvents.concat(layerHelper.addEvents(map, layerWithSource, handlers));
@@ -375,17 +397,17 @@ define([
             };
 
             _.mapObject(layerExtensions, (e, layerId) => {
-                const initializer = e.type && layerHelpers[e.type] || e;
+                const initializer = e.type && layerHelpers.byType[e.type] || e;
                 initializeLayer(initializer, e.id, e.options)
             });
 
-            _.mapObject(sourcesByLayerId, ({ type }, layerId) => {
+            _.mapObject(sourcesByLayerId, ({ type, features, ...options }, layerId) => {
                 if (layersWithSources[layerId]) return;
 
-                const initializer = layerHelpers[type];
+                const initializer = layerHelpers.byType[type];
 
                 if (initializer) {
-                    initializeLayer(initializer, layerId);
+                    initializeLayer(initializer, layerId, options);
                 } else {
                     console.warn('Sources present for layer: ' + layerId + ', but no layer type defined for: ' + type);
                 }
