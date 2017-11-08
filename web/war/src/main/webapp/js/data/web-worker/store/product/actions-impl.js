@@ -57,15 +57,12 @@ define([
 
         changedOnServer: (productId) => (dispatch, getState) => {
             const state = getState();
-            const productWorkspaceId = _.findKey(state.product.workspaces, workspace => productId in workspace.products);
 
-            if (productWorkspaceId) {
                 dispatch(api.get({
                     productId,
                     invalidate: true,
                     includeExtended: selectors.getSelectedId(state) === productId
                 }));
-            }
 
         },
 
@@ -95,7 +92,7 @@ define([
                 }
             }
 
-            dispatch({type: 'PRODUCT_UPDATE_LOCAL_DATA', payload: {workspaceId, productId, localData}});
+            dispatch({type: 'PRODUCT_UPDATE_LOCAL_DATA', payload: { workspaceId, productId, localData }});
         },
 
         updateData: ({productId, key, value}) => (dispatch, getState) => {
@@ -105,9 +102,29 @@ define([
                 data: {}
             };
             params.data[key] = value;
+            const oldValue = state.product.workspaces[workspaceId].products[productId].data[key];
+
+            dispatch({
+                type: 'PRODUCT_UPDATE_DATA',
+                payload: {
+                    workspaceId,
+                    productId,
+                    key,
+                    value
+                }
+            });
+
             ajax('POST', '/product', {productId, params})
-                .then(() => {
-                    dispatch({type: 'PRODUCT_UPDATE_DATA', payload: {workspaceId, productId, key, value}});
+                .catch((e) => {
+                    dispatch({
+                        type: 'PRODUCT_UPDATE_DATA',
+                        payload: {
+                            workspaceId,
+                            productId,
+                            key,
+                            oldValue
+                        }
+                    });
                 });
         },
 
@@ -118,9 +135,29 @@ define([
                 extendedData: {}
             };
             params.extendedData[key] = value;
+            const oldValue = state.product.workspaces[workspaceId].products[productId].extendedData[key];
+
+            dispatch({
+                type: 'PRODUCT_UPDATE_EXTENDED_DATA',
+                payload: {
+                    workspaceId,
+                    productId,
+                    key,
+                    value
+                }
+            });
+
             ajax('POST', '/product', {productId, params})
-                .then(() => {
-                    dispatch({type: 'PRODUCT_UPDATE_EXTENDED_DATA', payload: {workspaceId, productId, key, value}});
+                .catch((e) => {
+                    dispatch({
+                        type: 'PRODUCT_UPDATE_EXTENDED_DATA',
+                        payload: {
+                            workspaceId,
+                            productId,
+                            key,
+                            oldValue
+                        }
+                    });
                 });
         },
 

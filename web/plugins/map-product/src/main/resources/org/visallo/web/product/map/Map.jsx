@@ -3,12 +3,23 @@ define([
     'prop-types',
     './OpenLayers',
     './clusterHover',
+    './util/layerHelpers',
     'configuration/plugins/registry',
     'components/RegistryInjectorHOC',
     'util/vertex/formatters',
     'util/deepObjectCache',
     'util/mapConfig'
-], function(createReactClass, PropTypes, OpenLayers, clusterHover, registry, RegistryInjectorHOC, F, DeepObjectCache, mapConfig) {
+], function(
+    createReactClass,
+    PropTypes,
+    OpenLayers,
+    clusterHover,
+    layerHelpers,
+    registry,
+    RegistryInjectorHOC,
+    F,
+    DeepObjectCache,
+    mapConfig) {
     'use strict';
 
     const REQUEST_UPDATE_DEBOUNCE = 300;
@@ -131,7 +142,7 @@ define([
 
         render() {
             const { viewport, generatePreview } = this.state;
-            const { product, onSelectElements, onUpdatePreview, registry } = this.props;
+            const { product, registry, panelPadding, setLayerOrder, onSelectElements, onUpdatePreview } = this.props;
             const { source: baseSource, sourceOptions: baseSourceOptions, ...config } = mapConfig();
             const layerExtensions = _.indexBy(registry['org.visallo.map.layer'], 'id');
 
@@ -146,8 +157,9 @@ define([
                         layerExtensions={layerExtensions}
                         viewport={viewport}
                         generatePreview={generatePreview}
-                        panelPadding={this.props.panelPadding}
+                        panelPadding={panelPadding}
                         clearCaches={this.requestUpdateDebounce}
+                        setLayerOrder={setLayerOrder}
                         onTap={this.onTap}
                         onPan={this.onViewport}
                         onZoom={this.onViewport}
@@ -224,7 +236,7 @@ define([
             const cluster = features && features[0];
             const coordinates = cluster && cluster.get('coordinates');
             if (coordinates && coordinates.length > 1) {
-                clusterHover.show(ol, map, cluster, this._openlayers._featureStyle)
+                clusterHover.show(ol, map, cluster, layerHelpers.styles.feature)
             }
         },
 
@@ -392,7 +404,13 @@ define([
                 sources[id].features.push(feature);
             };
 
-            const sources = {};
+            const sources = {
+                cluster: {
+                    id: 'cluster',
+                    type: 'cluster',
+                    features: []
+                }
+            };
 
             elements.forEach(el => {
                 const extendedDataType = extendedData[el.type === 'vertex' ? 'vertices' : 'edges'];
@@ -463,7 +481,7 @@ define([
                     }),
                     iconUrlSelected = `${iconUrl}&selected=true`;
 
-                pushFeatureToSource({ id: 'cluster', type: 'cluster', ...layer }, {
+                pushFeatureToSource({ id: 'cluster', ...layer }, {
                     id: el.id,
                     element: el,
                     selected,

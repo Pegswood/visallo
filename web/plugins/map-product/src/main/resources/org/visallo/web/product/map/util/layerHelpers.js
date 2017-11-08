@@ -90,7 +90,6 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
             },
 
             addEvents(map, { source, clusterSource, layer }, handlers) {
-                // Feature Selection
                 const selectInteraction = new ol.interaction.Select({
                     condition: ol.events.condition.click,
                     layers: [layer],
@@ -99,7 +98,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
 
                 map.addInteraction(selectInteraction);
 
-                const onSelect = selectInteraction.on('select', function(e) {
+                const onSelectCluster = selectInteraction.on('select', function(e) {
                     const clusters = e.target.getFeatures().getArray(),
                         elements = { vertices: [], edges: [] };
 
@@ -140,7 +139,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                 }, 100));
 
                 return [
-                    onSelect,
+                    onSelectCluster,
                     onClusterSourceChange
                 ]
             },
@@ -196,6 +195,29 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                 });
 
                 return { source, layer };
+            },
+
+            addEvents(map, { source, layer }, handlers) {
+                const elements = { vertices: [], edges: [] };
+                const element = layer.get('element');
+                const key = element.type === 'vertex' ? 'vertices' : 'edges';
+
+                elements[key].push(element.id);
+
+                const onGeoShapeClick = map.on('click', (e) => {
+                    const { map, pixel } = e;
+
+                    const featuresAtPixel = map.getFeaturesAtPixel(pixel);
+
+                    if (featuresAtPixel && featuresAtPixel.length === 1) {
+                        const feature = featuresAtPixel[0];
+                        if (source.getFeatureById(feature.getId())) {
+                            handlers.onSelectElements(elements);
+                        }
+                    }
+                });
+
+                return [ onGeoShapeClick ]
             },
 
             update(source, { source: olSource, layer }) {

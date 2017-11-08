@@ -55,27 +55,78 @@ define([
 
         componentWillReceiveProps(nextProps) {
             const { sourcesByLayerId: prevSourcesByLayerId, product: prevProduct } = this.props;
-            const { sourcesByLayerId: nextSourcesByLayerId, product: nextProduct } = nextProps;
+            const {
+                sourcesByLayerId: nextSourcesByLayerId,
+                product: nextProduct,
+                registry,
+                baseSource,
+                baseSourceOptions,
+                generatePreview,
+                layerExtensions,
+                ...handlers } = nextProps;
             const { map, layersWithSources } = this.state;
-            const extendedDataKeys = ;
-            if (['vertices', 'edges'].some(key => nextProduct.extendedData[key] !== prevProduct.extendedData[key])) {
-                const deletedLayers = _.difference(Object.keys(nextSourcesByLayerId), Object.keys(prevSourcesByLayerId));
 
-                if (deletedLayers.length) {
-                    map.
+            if (['vertices', 'edges'].some(key => nextProduct.extendedData[key] !== prevProduct.extendedData[key])) {
+                const previous = Object.keys(prevSourcesByLayerId);
+                const newLayers = [];
+
+                Object.keys(nextSourcesByLayerId).forEach((layerId) => {
+                    if (!prevSourcesByLayerId[layerId]) {
+                        newLayers.push(layerId);
+                    } else {
+                        const layerIndex = previous.indexOf(layerId);
+                        previous.splice(layerIndex, 1);
+                    }
+                })
+
+                const layerGroup = map.getLayerGroup();
+                let nextLayers = layerGroup.getLayers().getArray().slice(0);
+                const existingLayersById = _.indexBy(nextLayers, layer => layer.get('id'));
+
+                previous.forEach(layerId => {
+                    const layerIndex = nextLayers.indexOf(layer => layer.get('id') === layerId);
+                    nextLayers.splice(layerIndex, 1);
+                });
+
+                const newLayersWithSources = {};
+
+                newLayers.forEach(layerId => {
+                    if (!existingLayersById[layerId]) {
+                        const { type, features, ...options } = nextSourcesByLayerId[layerId];
+                        const initializer = layerHelpers.byType[type] || registry['org.visallo.map.layer'].find(e => e.type === type);
+
+                        if (initializer) {
+                            const layerWithSource = initializer.configure(layerId, options);
+
+                            if (_.isFunction(initializer.addEvents)) {
+                                this.olEvents.concat(initializer.addEvents(map, layerWithSource, handlers));
+                            }
+
+                            newLayersWithSources[layerId] = layerWithSource;
+                            nextLayers.add(layerWithSource.layer);
+                        } else {
+                            console.warn('Sources present for layer: ' + layerId + ', but no layer type defined for: ' + type);
+                        }
+                    }
+                });
+
+                layerGroup.setLayers(new ol.Collection(nextLayers));
+
+                if (Object.keys(newLayersWithSources).length) {
+                    this.setState({ layersWithSources: { ...layersWithSources, ...newLayersWithSources }});
                 }
             }
         },
 
         componentDidUpdate(prevProps, prevState) {
             const { map, layersWithSources } = this.state;
-            const { sourcesByLayerId, layerExtensions } = this.props;
+            const { product, sourcesByLayerId, layerExtensions } = this.props;
 
             let changed = false;
             let fit = [];
 
             const layers = map.getLayers();
-            //TODO: delete old layers if missing in new sourcesByLayerId
+
             layers.forEach(layer => {
                 const layerId = layer.get('id');
 
@@ -100,8 +151,8 @@ define([
 
             const extendedData = product.extendedData || {};
             const prevExtendedData = prevProps.product.extendedData || {};
-            if (dataLayerGroup && extendedData.layerOrder !== prevExtendedData.layerOrder) {
-                dataChanged = true;
+            if (extendedData.layerOrder !== prevExtendedData.layerOrder) {
+                this.applyLayerOrder();
             }
 
 
@@ -427,8 +478,6 @@ define([
         configureEvents(map) {
             var self = this;
 
-
-
             this.olEvents.push(map.on('click', function(event) {
                 self.props.onTap(event);
             }));
@@ -461,6 +510,43 @@ define([
                     map.getTarget().style.cursor = '';
                 }
             });
+        },
+
+        applyLayerOrder() {
+            const { map } = this.state;
+            const { product, setLayerOrder } = this.props;
+            const layerOrder = (product.extendedData.layerOrder || []).slice(0).reverse();
+            const layersById = _.indexBy(map.getLayers().getArray(), layer => layer.get('id'));
+            const nextLayerGroup = map.getLayerGroup();
+            let orderedLayers = new ol.Collection();
+            let newLayers = [];
+
+            if (layerOrder.length) {
+                layerOrder.forEach((layerId, i) => {
+                    const layer = layersById[layerId];
+                    if (layer) {
+                        orderedLayers.push(layer);
+
+                        delete layersById[layerId];
+                    }
+                });
+
+                _.mapObject(layersById, (layer, layerId) => {
+                    orderedLayers.push(layer);
+                    newLayers.push(layerId);
+                });
+
+                nextLayerGroup.setLayers(orderedLayers);
+            } else {
+                newLayers = map.getLayers().getArray().reduce((ids, layer) => {
+                    ids.push(layer.get('id'));
+                    return ids;
+                }, []);
+            }
+
+            if (newLayers.length) {
+                setLayerOrder(layerOrder.reverse().concat(newLayers))
+            }
         },
 
         domEvent(el, type, handler) {

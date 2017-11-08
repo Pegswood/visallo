@@ -10,6 +10,7 @@ define([
             switch (type) {
                 case 'PRODUCT_MAP_ADD_ELEMENTS': return addElements(state, payload);
                 case 'PRODUCT_MAP_REMOVE_ELEMENTS': return removeElements(state, payload);
+                case 'PRODUCT_MAP_SET_LAYER_ORDER': return setLayerOrder(state, payload);
             }
 
             return state;
@@ -67,6 +68,22 @@ define([
                         [productId]: {
                             extendedData: {
                                 vertices: u.omitBy(v => elements.vertexIds.includes(v.id))
+                            }
+                        }
+                    }
+                }
+            }
+        }, state);
+    }
+
+    function setLayerOrder(state, { workspaceId, productId, layerOrder }) {
+        return u({
+            workspaces: {
+                [workspaceId]: {
+                    products: {
+                        [productId]: {
+                            extendedData: {
+                                layerOrder: u.constant(layerOrder)
                             }
                         }
                     }

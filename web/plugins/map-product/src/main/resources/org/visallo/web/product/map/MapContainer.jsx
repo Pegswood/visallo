@@ -89,7 +89,9 @@ define([
 
                 onVertexMenu: (element, vertexId, position) => {
                     $(element).trigger('showVertexContextMenu', { vertexId, position });
-                }
+                },
+
+                setLayerOrder: (layerOrder) => dispatch(mapActions.setLayerOrder(props.product.id, layerOrder))
             }
         }
 
