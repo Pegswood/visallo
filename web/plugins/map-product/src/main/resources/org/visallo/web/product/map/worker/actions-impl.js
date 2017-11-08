@@ -143,6 +143,24 @@ define([
                     ajax('POST', '/product/map/vertices/remove', { productId, vertexIds: elements.vertexIds })
                 }
             }
+        },
+
+        setLayerOrder: ({ productId, layerOrder }) => (dispatch, getState) => {
+            const state = getState();
+            const workspaceId = state.workspace.currentId;
+            const workspace = state.workspace.byId[workspaceId];
+            const product = state.product.workspaces[workspaceId].products[productId];
+
+            const layerExtendedData = product.extendedData && product.extendedData['org-visallo-map-layers'];
+
+
+            if (workspace.editable) {
+                dispatch(productActions.updateExtendedData({
+                    key: 'org-visallo-map-layers',
+                    value: { ...layerExtendedData, layerOrder },
+                    productId
+                }));
+            }
         }
     };
 

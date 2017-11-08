@@ -321,6 +321,22 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
         }
     };
 
+    function setLayerConfig(config, layer) {
+        const { visible, opacity, zIndex, ...properties } = config;
+
+        _.mapObject(properties, (value, key) => {
+            if (value === null) {
+                layer.unset(key);
+            } else {
+                layer.set(key, value);
+            }
+        })
+
+        if (visible !== undefined) { layer.setVisible(visible) }
+        if (opacity !== undefined) { layer.setOpacity(opacity) }
+        if (zIndex !== undefined) { layer.setZIndex(zIndex) }
+    }
+
     function syncFeatures({ features }, { source }) {
         const existingFeatures = _.indexBy(source.getFeatures(), f => f.getId());
         const newFeatures = [];
@@ -432,6 +448,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
 
     return {
         byType: layers,
-        styles
+        styles,
+        setLayerConfig
     }
 })

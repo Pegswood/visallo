@@ -2,12 +2,14 @@ define([
     'prop-types',
     'create-react-class',
     'react-sortable-hoc',
-    './MapLayersList'
+    './MapLayersList',
+    '../util/layerHelpers'
 ], function(
     PropTypes,
     createReactClass,
     { arrayMove },
-    MapLayersList) {
+    MapLayersList,
+    layerHelpers) {
 
     const MapLayers = createReactClass({
 
@@ -38,32 +40,34 @@ define([
         },
 
         onOrderLayer(oldSubsetIndex, newSubsetIndex) {
-            const { product, layerOrder, setLayerOrder } = this.props;
-            const productLayerOrder = product.extendedData.layerOrder;
-            const orderedSubset = arrayMove(layerOrder, oldSubsetIndex, newSubsetIndex);
+            const { product, layerIds, layerOrder, setLayerOrder } = this.props;
+            const orderedSubset = arrayMove(layerIds, oldSubsetIndex, newSubsetIndex);
 
-            const oldIndex = productLayerOrder.indexOf(orderedSubset[newSubsetIndex]);
+            const oldIndex = layerOrder.indexOf(orderedSubset[newSubsetIndex]);
             let newIndex;
             if (newSubsetIndex === orderedSubset.length - 1) {
                 const afterId = orderedSubset[newSubsetIndex - 1];
-                newIndex = productLayerOrder.indexOf(afterId);
+                newIndex = layerOrder.indexOf(afterId);
             } else {
                 const beforeId = orderedSubset[newSubsetIndex + 1];
                 const displacementOffset = oldSubsetIndex > newSubsetIndex ? 0 : 1;
-                newIndex = Math.max((productLayerOrder.indexOf(beforeId) - displacementOffset), 0);
+                newIndex = Math.max((layerOrder.indexOf(beforeId) - displacementOffset), 0);
             }
 
             //optimistically update rules order in local component state so it doesn't jump
             this.setState({ futureIndex: [ oldSubsetIndex, newSubsetIndex ]});
 
-            setLayerOrder(arrayMove(productLayerOrder, oldIndex, newIndex));
+            setLayerOrder(arrayMove(layerOrder, oldIndex, newIndex));
         },
 
-        onToggleLayer(layerId) {
-            const { layers } = this.props;
+        onToggleLayer(layer) {
+            const { product, layersConfig, updateLayerConfig } = this.props;
 
-            const layer = layers.find(layer => layer.get('id') === layerId);
-            layer.setOpacity()
+            const layerId = layer.get('id');
+            const config = { ...(layersConfig[layerId] || {}), visible: !layer.getVisible() };
+
+            layerHelpers.setLayerConfig(config, layer);
+            updateLayerConfig(config, layerId);
         }
 
     });

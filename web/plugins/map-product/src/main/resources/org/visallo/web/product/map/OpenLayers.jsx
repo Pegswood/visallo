@@ -20,7 +20,8 @@ define([
         MAX_FIT_ZOOM_RESOLUTION = 20000,
         PREVIEW_WIDTH = 300,
         PREVIEW_HEIGHT = 300,
-        PREVIEW_DEBOUNCE_SECONDS = 2;
+        PREVIEW_DEBOUNCE_SECONDS = 2,
+        LAYERS_EXTENDED_DATA_KEY = 'org-visallo-map-layers';
 
     const OpenLayers = createReactClass({
         propTypes: {
@@ -66,7 +67,9 @@ define([
                 ...handlers } = nextProps;
             const { map, layersWithSources } = this.state;
 
-            if (['vertices', 'edges'].some(key => nextProduct.extendedData[key] !== prevProduct.extendedData[key])) {
+            const nextLayerIds = Object.keys(nextProps.sourcesByLayerId);
+            if (nextLayerIds.length !== Object.keys(layersWithSources).length
+                || nextLayerIds.some(layerId => !layersWithSources[layerId])) {
                 const previous = Object.keys(prevSourcesByLayerId);
                 const newLayers = [];
 
@@ -103,7 +106,7 @@ define([
                             }
 
                             newLayersWithSources[layerId] = layerWithSource;
-                            nextLayers.add(layerWithSource.layer);
+                            nextLayers.push(layerWithSource.layer);
                         } else {
                             console.warn('Sources present for layer: ' + layerId + ', but no layer type defined for: ' + type);
                         }
@@ -149,9 +152,13 @@ define([
                 }
             });
 
-            const extendedData = product.extendedData || {};
-            const prevExtendedData = prevProps.product.extendedData || {};
-            if (extendedData.layerOrder !== prevExtendedData.layerOrder) {
+            const newLayerOrder = product.extendedData
+                && product.extendedData[LAYERS_EXTENDED_DATA_KEY]
+                && product.extendedData[LAYERS_EXTENDED_DATA_KEY].layerOrder;
+            const prevLayerOrder = prevProps.product.extendedData
+                && prevProps.product.extendedData[LAYERS_EXTENDED_DATA_KEY]
+                && prevProps.product.extendedData[LAYERS_EXTENDED_DATA_KEY].layerOrder;
+            if (map && (map !== prevState.map || newLayerOrder !== prevLayerOrder)) {
                 this.applyLayerOrder();
             }
 
@@ -515,13 +522,18 @@ define([
         applyLayerOrder() {
             const { map } = this.state;
             const { product, setLayerOrder } = this.props;
-            const layerOrder = (product.extendedData.layerOrder || []).slice(0).reverse();
             const layersById = _.indexBy(map.getLayers().getArray(), layer => layer.get('id'));
             const nextLayerGroup = map.getLayerGroup();
+            let layerOrder = product.extendedData
+                && product.extendedData[LAYERS_EXTENDED_DATA_KEY]
+                && product.extendedData[LAYERS_EXTENDED_DATA_KEY].layerOrder.slice(0) || [];
+
             let orderedLayers = new ol.Collection();
             let newLayers = [];
 
             if (layerOrder.length) {
+                layerOrder = layerOrder.reverse();
+
                 layerOrder.forEach((layerId, i) => {
                     const layer = layersById[layerId];
                     if (layer) {
@@ -545,7 +557,7 @@ define([
             }
 
             if (newLayers.length) {
-                setLayerOrder(layerOrder.reverse().concat(newLayers))
+                setLayerOrder(layerOrder.concat(newLayers.reverse()))
             }
         },
 

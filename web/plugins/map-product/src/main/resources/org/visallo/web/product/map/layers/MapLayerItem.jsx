@@ -7,8 +7,19 @@ define([
     { SortableElement },
     F) {
 
-    const MapLayerItem = ({ layer, style, toggleable, onToggleRule, onSelectRule }) => {
-        return <div className="rule-list-item" style={style}>{ titleRenderer(layer) }</div>
+    const MapLayerItem = ({ layer, style, toggleable, onToggleLayer }) => {
+        return (
+            <div className="rule-list-item" style={style}>
+                <input
+                    type="checkbox"
+                    checked={layer.getVisible()}
+                    disabled={!toggleable}
+                    onChange={(e) => { onToggleLayer(layer)}}
+                    onClick={(e) => { e.stopPropagation() }}
+                />
+                { titleRenderer(layer) }
+            </div>
+        )
 //        return (
 //          <div className="rule-list-item" style={{ ...style }} onClick={(e) => { onSelectRule(rule.id)}}>
 //            <input

@@ -9,7 +9,8 @@ define([
     'util/dnd',
     './worker/actions',
     'components/DroppableHOC',
-    './Map'
+    './Map',
+    './util/layerHelpers'
 ], function(
     redux,
     ReactDom,
@@ -21,7 +22,8 @@ define([
     dnd,
     mapActions,
     DroppableHOC,
-    Map) {
+    Map,
+    layerHelpers) {
     'use strict';
 
     registry.registerExtension('org.visallo.product.toolbar.item', {
@@ -30,8 +32,19 @@ define([
         placementHint: 'popover',
         label: 'Layers',
         canHandle: (product) => product.kind === 'org.visallo.web.product.map.MapWorkProduct',
-        initialize: () => {
-            //set initial order + opacity
+        initialize: ({ product, map }) => {
+            const layerConfig = product.extendedData && product.extendedData['org-visallo-map-layers'] && product.extendedData['org-visallo-map-layers'].config;
+            if (layerConfig) {
+                const layersById = _.indexBy(map.getLayers().getArray(), layer => layer.get('id'));
+
+                _.mapObject(layerConfig, (config, layerId) => {
+                    const layer = layersById[layerId];
+
+                    if (layer) {
+                        layerHelpers.setLayerConfig(config, layersById[layerId]);
+                    }
+                });
+            }
         }
     });
 

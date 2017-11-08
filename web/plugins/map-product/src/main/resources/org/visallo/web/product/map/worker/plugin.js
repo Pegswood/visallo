@@ -83,7 +83,9 @@ define([
                     products: {
                         [productId]: {
                             extendedData: {
-                                layerOrder: u.constant(layerOrder)
+                                'org-visallo-map-layers': {
+                                    layerOrder: u.constant(layerOrder)
+                                }
                             }
                         }
                     }

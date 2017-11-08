@@ -55,7 +55,7 @@ define([
     );
 
     const mapLayerItemRenderer = (itemProps) => (listProps) => {
-        const { editable } = itemProps;
+        const { editable, ...rest } = itemProps;
         const { index, style, key, value: layer } = listProps;
 
         return (
@@ -66,6 +66,7 @@ define([
                 extension={'layer'}
                 style={style}
                 toggleable={editable}
+                {...rest}
             />
         )
     };
