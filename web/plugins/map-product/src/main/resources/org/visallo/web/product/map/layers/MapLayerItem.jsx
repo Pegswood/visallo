@@ -34,7 +34,7 @@ define([
         } else if (element) {
             return F.vertex.title(element);
         } else {
-            return 'No title available';
+            return i18n('org.visallo.map.layer.no.title');
         }
     };
 
