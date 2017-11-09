@@ -9,7 +9,7 @@ define([
 
     const MapLayerItem = ({ layer, style, toggleable, onToggleLayer }) => {
         return (
-            <div className="rule-list-item" style={style}>
+            <div className="layer-item" style={{ ...style, zIndex: 50 }}>
                 <input
                     type="checkbox"
                     checked={layer.getVisible()}
@@ -17,25 +17,13 @@ define([
                     onChange={(e) => { onToggleLayer(layer)}}
                     onClick={(e) => { e.stopPropagation() }}
                 />
-                { titleRenderer(layer) }
+                <div className="layer-title">{ titleRenderer(layer) }</div>
+                <div
+                    className="layer-icon drag-handle"
+                    title={i18n('org.visallo.web.product.map.MapWorkProduct.layers.sort.help')}
+                ></div>
             </div>
         )
-//        return (
-//          <div className="rule-list-item" style={{ ...style }} onClick={(e) => { onSelectRule(rule.id)}}>
-//            <input
-//                type="checkbox"
-//                checked={rule.enabled}
-//                disabled={!toggleable}
-//                onChange={(e) => { onToggleRule(rule)}}
-//                onClick={(e) => { e.stopPropagation() }}
-//            />
-//            <div className="rule-title">
-//                <div className="title" title={title}>{ title }</div>
-//                <span className="subtitle">{ extension.subtitleRenderer(product, rule) }</span>
-//            </div>
-//            <div className="rule-icon drag-handle" title={i18n('com.visallo.product.styles.rule.list.item.sort.help')}></div>
-//          </div>
-//        );
     };
 
     const titleRenderer = (layer) => {

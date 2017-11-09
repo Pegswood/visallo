@@ -23,7 +23,8 @@ define([
         (state, props) => {
             const { product, map, cluster, layersWithSources, ...injectedProps } = props;
             const editable = state.workspace.byId[state.workspace.currentId].editable;
-            const layers = map.getLayers().getArray().slice(0).reverse();
+            const baseLayer = map.getLayers().item(0);
+            const layers = map.getLayers().getArray().slice(1).reverse();
             const layerIds = layers.reduce((order, layer) => {
                 order.push(layer.get('id'));
                 return order;
@@ -36,6 +37,7 @@ define([
                 ...injectedProps,
                 product,
                 map,
+                baseLayer,
                 layersConfig,
                 layerOrder,
                 layerIds,

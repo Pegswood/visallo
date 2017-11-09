@@ -18,18 +18,21 @@ define([
         },
 
         componentWillReceiveProps(nextProps) {
-            if (nextProps.layers !== this.props.layers && this.state.futureIndex) {
+            if (nextProps.layerOrder !== this.props.layerOrder && this.state.futureIndex) {
                 this.setState({ futureIndex: null });
             }
         },
 
         render() {
-            const { layers, editable, ol, map } = this.props;
+            const { futureIndex } = this.state;
+            const { baseLayer, layers, editable, ol, map } = this.props;
+            const layerList = futureIndex ? arrayMove(layers, futureIndex[0], futureIndex[1]) : layers;
 
             return (
                 <div className="map-layers">
                     <MapLayersList
-                        layers={layers}
+                        baseLayer={baseLayer}
+                        layers={layerList}
                         editable={editable}
                         onToggleLayer={this.onToggleLayer}
                         onSelectLayer={this.onSelectLayer}
@@ -54,7 +57,7 @@ define([
                 newIndex = Math.max((layerOrder.indexOf(beforeId) - displacementOffset), 0);
             }
 
-            //optimistically update rules order in local component state so it doesn't jump
+            //optimistically update item order in local component state so it doesn't jump
             this.setState({ futureIndex: [ oldSubsetIndex, newSubsetIndex ]});
 
             setLayerOrder(arrayMove(layerOrder, oldIndex, newIndex));

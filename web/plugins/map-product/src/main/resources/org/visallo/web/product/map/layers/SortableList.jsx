@@ -12,11 +12,12 @@ define([
 const VirtualList = createReactClass({
 
     render() {
-        const {items, rowRenderer, rowHeight, width, height } = this.props;
+        const { items, rowRenderer, className, rowHeight, width, height } = this.props;
 
         return (
             <List
                 ref={(instance) => { this.List = instance; }}
+                className={className}
                 rowHeight={rowHeight}
                 rowRenderer={({ index, ...rest }) => rowRenderer({ index, value: items[index], ...rest })}
                 rowCount={items.length}

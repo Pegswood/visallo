@@ -531,6 +531,9 @@ define([
             let orderedLayers = new ol.Collection();
             let newLayers = [];
 
+            orderedLayers.push(layersById['base']);
+            delete layersById['base'];
+
             if (layerOrder.length) {
                 layerOrder = layerOrder.reverse();
 
@@ -550,7 +553,7 @@ define([
 
                 nextLayerGroup.setLayers(orderedLayers);
             } else {
-                newLayers = map.getLayers().getArray().reduce((ids, layer) => {
+                newLayers = map.getLayers().getArray().slice(1).reduce((ids, layer) => {
                     ids.push(layer.get('id'));
                     return ids;
                 }, []);
