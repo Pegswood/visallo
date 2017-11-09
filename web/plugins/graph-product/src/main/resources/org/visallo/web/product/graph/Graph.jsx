@@ -133,6 +133,7 @@ define([
         },
 
         componentDidMount() {
+            this.mounted = true;
             memoizeClear();
             this.cyNodeIdsWithPositionChanges = {};
 
@@ -255,6 +256,7 @@ define([
         },
 
         componentWillUnmount() {
+            this.mounted = false;
             this.removeEvents.forEach(({ node, func, events }) => {
                 $(node).off(events, func);
             })
@@ -392,8 +394,10 @@ define([
         },
 
         requestUpdate() {
-            memoizeClear();
-            this.forceUpdate();
+            if (this.mounted) {
+                memoizeClear();
+                this.forceUpdate();
+            }
         },
 
         onReady({ cy }) {

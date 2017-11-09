@@ -165,6 +165,7 @@ define([
         },
 
         componentDidMount() {
+            this.mounted = true;
             $(this.wrap).on('selectAll', (event) => {
                 this.props.onSelectAll(this.props.product.id);
             })
@@ -183,6 +184,7 @@ define([
         },
 
         componentWillUnmount() {
+            this.mounted = false;
             this.removeEvents.forEach(({ node, func, events }) => {
                 $(node).off(events, func);
             });
@@ -441,10 +443,12 @@ define([
         },
 
         clearCaches() {
-            Object.keys(this.caches).forEach(k => {
-                Object.keys(this.caches[k]).forEach(key => this.caches[k][key].clear())
-            })
-            this.forceUpdate();
+            if (this.mounted) {
+                Object.keys(this.caches).forEach(k => {
+                    Object.keys(this.caches[k]).forEach(key => this.caches[k][key].clear())
+                })
+                this.forceUpdate();
+            }
         }
     });
 
