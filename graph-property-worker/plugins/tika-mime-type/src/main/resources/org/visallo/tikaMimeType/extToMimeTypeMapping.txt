@@ -448,8 +448,6 @@
 .sh	    text/x-script.sh
 .shar	application/x-bsh
 .shar	application/x-shar
-.shp    application/x-qgis
-.shx    application/x-qgis
 .shtml	text/html
 .shtml	text/x-server-parsed-html
 .sid	audio/x-psid

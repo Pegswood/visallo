@@ -2,6 +2,7 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
 
     const FEATURE_HEIGHT = 40;
     const FEATURE_CLUSTER_HEIGHT = 24;
+    const VECTOR_FEATURE_SELECTION_OVERLAY = 'org-visallo-map-vector-selected-overlay';
 
     const DEFAULT_LAYER_CONFIG = {
         sortable: true,
@@ -183,15 +184,16 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
             update: syncFeatures
         },
 
-        geoShape: {
+        vectorXhr: {
             configure(id, options = {}) {
-                const source = new ol.source.Vector({ features: [] });
+                const { mimeType, url, ...config } = options;
+                const source = new ol.source.Vector({ format: getFormatForMimeType(mimeType), url });
                 const layer = new ol.layer.Vector({
                     ...DEFAULT_LAYER_CONFIG,
                     id,
-                    type: 'geoShape',
+                    type: 'vectorXhr',
                     source,
-                    ...options
+                    ...config
                 });
 
                 return { source, layer };
@@ -211,79 +213,19 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
 
                     if (featuresAtPixel && featuresAtPixel.length === 1) {
                         const feature = featuresAtPixel[0];
-                        if (source.getFeatureById(feature.getId())) {
-                            handlers.onSelectElements(elements);
+
+                        if (source.getFeatures().includes(feature)) {
+                            if (feature.getId() === VECTOR_FEATURE_SELECTION_OVERLAY) {
+                                handlers.onSelectElements({ vertices: [], edges: [] });
+                            } else {
+                                handlers.onSelectElements(elements);
+                            }
                         }
                     }
                 });
 
                 return [ onGeoShapeClick ]
             },
-
-            update(source, { source: olSource, layer }) {
-                const { element, features, selected, styles } = source;
-                const nextFeatures = [];
-                let changed = false;
-                let fitFeatures;
-
-                if (element !== layer.get('element') || !olSource.getFeatures().length) {
-                    features.forEach(feature => {
-                        const geoShapeFeatures = (new ol.format.GeoJSON()).readFeatures(feature.geoShape);
-
-                        geoShapeFeatures.forEach((f, i) => {
-                            f.setId(feature.id + ':' + i);
-                            nextFeatures.push(f);
-                        });
-                    });
-
-                    olSource.clear();
-                    olSource.addFeatures(nextFeatures);
-
-                    changed = true;
-                    fitFeatures = nextFeatures;
-                }
-
-                return { changed, fitFeatures };
-            }
-        },
-
-        vectorXhr: {
-            configure(id, options = {}) {
-                const { mimeType, url, ...config } = options;
-                const source = new ol.source.Vector({ format: getFormatForMimeType(mimeType), url });
-                const layer = new ol.layer.Vector({
-                    ...DEFAULT_LAYER_CONFIG,
-                    id,
-                    type: 'vectorXhr',
-                    source,
-                    ...config
-                });
-
-                return { source, layer };
-            },
-
-//            addEvents(map, { source, layer }, handlers) {
-//                const elements = { vertices: [], edges: [] };
-//                const element = layer.get('element');
-//                const key = element.type === 'vertex' ? 'vertices' : 'edges';
-//
-//                elements[key].push(element.id);
-//
-//                const onGeoShapeClick = map.on('click', (e) => {
-//                    const { map, pixel } = e;
-//
-//                    const featuresAtPixel = map.getFeaturesAtPixel(pixel);
-//
-//                    if (featuresAtPixel && featuresAtPixel.length === 1) {
-//                        const feature = featuresAtPixel[0];
-//                        if (source.getFeatureById(feature.getId())) {
-//                            handlers.onSelectElements(elements);
-//                        }
-//                    }
-//                });
-//
-//                return [ onGeoShapeClick ]
-//            },
 
             update(source, { source: olSource, layer }) {
                 const { element, features, selected } = source;
@@ -300,6 +242,27 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                     olSource.set({ url: source.url });
                     olSource.refresh();
                     changed = true;
+                }
+
+                if (selected !== olSource.get('selected')) {
+                    olSource.set('selected', selected);
+                    changed = true;
+
+                    if (selected) {
+                        const selectedOverlay = new ol.Feature(ol.geom.Polygon.fromExtent(olSource.getExtent()));
+                        selectedOverlay.setStyle(new ol.style.Style({
+                            fill: new ol.style.Fill({ color: [0, 136, 204, 0.3] }),
+                            stroke: new ol.style.Stroke({ color: [0, 136, 204, 0.5], width: 2 })
+                        }));
+                        selectedOverlay.setId(VECTOR_FEATURE_SELECTION_OVERLAY)
+
+                        olSource.addFeature(selectedOverlay);
+                    } else {
+                        const selectedOverlay = olSource.getFeatureById(VECTOR_FEATURE_SELECTION_OVERLAY);
+                        if (selectedOverlay) {
+                            olSource.removeFeature(selectedOverlay);
+                        }
+                    }
                 }
 
                 return { changed };
@@ -495,8 +458,6 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
         switch (mimeType) {
             case 'application/vnd.geo+json':
                 return new ol.format.GeoJSON();
-            case 'application/x-qgis':
-                return new ol.format.EsriJSON();
             case 'application/vnd.google-earth.kml+xml':
                 return new ol.format.KML();
         }

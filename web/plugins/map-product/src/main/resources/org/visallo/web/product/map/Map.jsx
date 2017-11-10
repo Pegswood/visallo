@@ -128,7 +128,6 @@ define([
     const REQUEST_UPDATE_DEBOUNCE = 300;
     const GEOSHAPE_MIMETYPES = [
         'application/vnd.geo+json',
-        'application/x-qgis',
         'application/vnd.google-earth.kml+xml'
     ];
 
@@ -426,6 +425,7 @@ define([
                 const geometryOverride = this.getGeometry(edgeInfo, el, ontology)
                 const geometry = geometryOverride && geometryOverride.geometry;
                 const layer = geometryOverride && geometryOverride.layer || {};
+                const selected = el.id in elementsSelectedById;
 
                 if (extendedData.vertices[el.id] && extendedData.vertices[el.id].ancillary) {
                     addOrUpdateSource({ id: 'ancillary', type: 'ancillary', ...layer }, {
@@ -461,27 +461,6 @@ define([
                     }
                 }
 
-                const geoShapePropertyKey = 'http://visallo.org/geo_data#84bea9ded0ce0c5024b7101c51595b87a2a28c8e'; //TODO generic
-                const geoShapeProperties = F.vertex.props(el, geoShapePropertyKey);
-
-                if (geoShapeProperties.length) {
-                    const sourceConfig = {
-                        id: el.id,
-                        type: 'geoShape',
-                        element: el,
-                        selected,
-                        styles
-                    };
-
-                    geoShapeProperties.forEach(geoShapeProp => {
-                        addOrUpdateSource(sourceConfig, {
-                            id: geoShapeProp.key,
-                            geoShape: geoShapeProp.value,
-                            element: el
-                        });
-                    });
-                }
-
                 const geoLocations = geoLocationProperties && geoLocationProperties.reduce((props, { title }) => {
                         const geoProps = F.vertex.props(el, title);
                         geoProps.forEach(geoProp => {
@@ -500,7 +479,6 @@ define([
                         })
                         return props;
                     }, []),
-                    selected = el.id in elementsSelectedById,
                     iconUrl = 'map/marker/image?' + $.param({
                         type: el.conceptType,
                         workspaceId: this.props.workspaceId,

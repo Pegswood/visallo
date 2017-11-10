@@ -357,7 +357,7 @@ define([
             const view = map.getView();
             const extent = limitToFeatures.length ?
                 this.extentFromFeatures(limitToFeatures) :
-                layersWithSources.cluster.source.getExtent();
+                layersWithSources.cluster.source.getExtent(); //TODO: concat all features/extents of element layers
             const changeZoom = limitToFeatures.length !== 1;
 
             if (!ol.extent.isEmpty(extent)) {
