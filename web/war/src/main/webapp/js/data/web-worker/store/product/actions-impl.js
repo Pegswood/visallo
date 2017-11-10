@@ -55,15 +55,16 @@ define([
             payload: { productId, md5, workspaceId }
         }),
 
-        changedOnServer: (productId) => (dispatch, getState) => {
+        changedOnServer: ({ productId, workspaceId }) => (dispatch, getState) => {
             const state = getState();
 
+            if (state.product.workspaces[workspaceId]) {
                 dispatch(api.get({
-                    productId,
-                    invalidate: true,
-                    includeExtended: selectors.getSelectedId(state) === productId
-                }));
-
+                        productId,
+                        invalidate: true,
+                        includeExtended: selectors.getSelectedId(state) === productId
+                    }));
+            }
         },
 
         update: (product) => ({
