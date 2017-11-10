@@ -2,7 +2,7 @@
 .3dmf	x-world/x-3dmf
 .a	    application/octet-stream
 .aab	application/x-authorware-bin
-.aac audio/x-aac
+.aac    audio/x-aac
 .aam	application/x-authorware-map
 .aas	application/x-authorware-seg
 .acgi	text/html
@@ -143,6 +143,7 @@
 .funk	audio/make
 .g	    text/plain
 .g3	    image/g3fax
+.geojson application/vnd.geo+json
 .gif	image/gif
 .gl	    video/gl
 .gl	    video/x-gl
@@ -447,6 +448,8 @@
 .sh	    text/x-script.sh
 .shar	application/x-bsh
 .shar	application/x-shar
+.shp    application/x-qgis
+.shx    application/x-qgis
 .shtml	text/html
 .shtml	text/x-server-parsed-html
 .sid	audio/x-psid

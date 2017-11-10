@@ -22,8 +22,6 @@ define([
     mapConfig) {
     'use strict';
 
-    const REQUEST_UPDATE_DEBOUNCE = 300;
-
     /**
      * @deprecated Use {@link org.visallo.product.toolbar.item} instead
      */
@@ -125,6 +123,14 @@ define([
         },
         'http://docs.visallo.org/extension-points/front-end/mapLayers' //TODO
     );
+
+
+    const REQUEST_UPDATE_DEBOUNCE = 300;
+    const GEOSHAPE_MIMETYPES = [
+        'application/vnd.geo+json',
+        'application/x-qgis',
+        'application/vnd.google-earth.kml+xml'
+    ];
 
     const Map = createReactClass({
 
@@ -387,14 +393,14 @@ define([
         },
 
         mapElementsToSources() {
-            const { product } = this.props;
+            const { product, workspaceId } = this.props;
             const { extendedData } = product;
             if (!extendedData || !extendedData.vertices) return [];
             const { vertices, edges } = this.props.elements;
             const elementsSelectedById = { ..._.indexBy(this.props.selection.vertices), ..._.indexBy(this.props.selection.edges) };
             const elements = Object.values(vertices).concat(Object.values(edges));
             const geoLocationProperties = _.groupBy(this.props.ontologyProperties, 'dataType').geoLocation;
-            const pushFeatureToSource = ({ id, ...rest }, feature) => {
+            const addOrUpdateSource = ({ id, ...rest }, feature) => {
                 if (!sources[id]) {
                     sources[id] = { features: [], ...rest };
                 } else if (!sources[id].features) {
@@ -422,7 +428,7 @@ define([
                 const layer = geometryOverride && geometryOverride.layer || {};
 
                 if (extendedData.vertices[el.id] && extendedData.vertices[el.id].ancillary) {
-                    pushFeatureToSource({ id: 'ancillary', type: 'ancillary', ...layer }, {
+                    addOrUpdateSource({ id: 'ancillary', type: 'ancillary', ...layer }, {
                         id: el.id,
                         element: el,
                         selected,
@@ -433,6 +439,27 @@ define([
                     return;
                 }
 
+                if (F.vertex.displayType(el) === 'document') {
+                    const mimeType = F.vertex.prop(el, 'http://visallo.org#mimeType');
+
+                    if (GEOSHAPE_MIMETYPES.includes(mimeType)) {
+                        const rawProp = F.vertex.props(el, 'http://visallo.org#raw')[0];
+                        addOrUpdateSource({
+                            id: el.id,
+                            type: 'vectorXhr',
+                            mimeType,
+                            url: 'vertex/property'
+                                + '?graphVertexId=' + encodeURIComponent(el.id)
+                                + '&propertyName=' + encodeURIComponent(rawProp.name)
+                                + '&propertyKey=' + encodeURIComponent(rawProp.key)
+                                + '&workspaceId=' + encodeURIComponent(workspaceId)
+                                + '&download=true',
+                            element: el,
+                            selected,
+                            styles
+                        });
+                    }
+                }
 
                 const geoShapePropertyKey = 'http://visallo.org/geo_data#84bea9ded0ce0c5024b7101c51595b87a2a28c8e'; //TODO generic
                 const geoShapeProperties = F.vertex.props(el, geoShapePropertyKey);
@@ -447,7 +474,7 @@ define([
                     };
 
                     geoShapeProperties.forEach(geoShapeProp => {
-                        pushFeatureToSource(sourceConfig, {
+                        addOrUpdateSource(sourceConfig, {
                             id: geoShapeProp.key,
                             geoShape: geoShapeProp.value,
                             element: el
@@ -481,7 +508,7 @@ define([
                     }),
                     iconUrlSelected = `${iconUrl}&selected=true`;
 
-                pushFeatureToSource({ id: 'cluster', ...layer }, {
+                addOrUpdateSource({ id: 'cluster', ...layer }, {
                     id: el.id,
                     element: el,
                     selected,

@@ -245,6 +245,65 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
 
                 return { changed, fitFeatures };
             }
+        },
+
+        vectorXhr: {
+            configure(id, options = {}) {
+                const { mimeType, url, ...config } = options;
+                const source = new ol.source.Vector({ format: getFormatForMimeType(mimeType), url });
+                const layer = new ol.layer.Vector({
+                    ...DEFAULT_LAYER_CONFIG,
+                    id,
+                    type: 'vectorXhr',
+                    source,
+                    ...config
+                });
+
+                return { source, layer };
+            },
+
+//            addEvents(map, { source, layer }, handlers) {
+//                const elements = { vertices: [], edges: [] };
+//                const element = layer.get('element');
+//                const key = element.type === 'vertex' ? 'vertices' : 'edges';
+//
+//                elements[key].push(element.id);
+//
+//                const onGeoShapeClick = map.on('click', (e) => {
+//                    const { map, pixel } = e;
+//
+//                    const featuresAtPixel = map.getFeaturesAtPixel(pixel);
+//
+//                    if (featuresAtPixel && featuresAtPixel.length === 1) {
+//                        const feature = featuresAtPixel[0];
+//                        if (source.getFeatureById(feature.getId())) {
+//                            handlers.onSelectElements(elements);
+//                        }
+//                    }
+//                });
+//
+//                return [ onGeoShapeClick ]
+//            },
+
+            update(source, { source: olSource, layer }) {
+                const { element, features, selected } = source;
+                const nextFeatures = [];
+                let changed = false;
+                let fitFeatures;
+
+                if (element !== layer.get('element')) {
+                    olSource.set('element', element);
+                    changed = true;
+                }
+
+                if (!olSource.get('url') || source.url !== olSource.get('url')) {
+                    olSource.set({ url: source.url });
+                    olSource.refresh();
+                    changed = true;
+                }
+
+                return { changed };
+            }
         }
     };
 
@@ -430,6 +489,17 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
             _.forEach(existingFeatures, feature => source.removeFeature(feature));
         }
         return { changed, fitFeatures };
+    }
+
+    function getFormatForMimeType(mimeType) {
+        switch (mimeType) {
+            case 'application/vnd.geo+json':
+                return new ol.format.GeoJSON();
+            case 'application/x-qgis':
+                return new ol.format.EsriJSON();
+            case 'application/vnd.google-earth.kml+xml':
+                return new ol.format.KML();
+        }
     }
 
     function getRadiusFromStyles(styles) {
