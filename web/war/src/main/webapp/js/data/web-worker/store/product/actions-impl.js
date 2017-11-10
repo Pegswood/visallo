@@ -175,9 +175,13 @@ define([
                 workspaceId = state.workspace.currentId,
                 product = state.product.workspaces[workspaceId].products[productId];
 
+            const vertices = Object.keys(product.extendedData.vertices).filter(id => {
+                return !product.extendedData.vertices[id].ancillary
+            });
+
             dispatch(selectionActions.set({
                 selection: {
-                    vertices: Object.keys(product.extendedData.vertices),
+                    vertices,
                     edges: Object.keys(product.extendedData.edges)
                 }
             }));
