@@ -224,7 +224,31 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                     }
                 });
 
-                return [ onGeoShapeClick ]
+                const onFeatureChange = source.on(['addfeature', 'removefeature'], _.debounce((event) => {
+                    if (!event.feature || event.feature.getId() === VECTOR_FEATURE_SELECTION_OVERLAY) return;
+
+                    const selectionOverlay = source.getFeatureById(VECTOR_FEATURE_SELECTION_OVERLAY);
+                    if (selectionOverlay) {
+                        let extent;
+                        source.forEachFeature(feature => {
+                            const geom = feature.getGeometry();
+                            const featureExtent = geom.getExtent();
+
+                            if (feature.getId() !== VECTOR_FEATURE_SELECTION_OVERLAY) {
+                                if (extent) {
+                                    ol.extent.extend(extent, featureExtent);
+                                } else {
+                                    extent = featureExtent;
+                                }
+                            }
+                        });
+
+                        const geometry = ol.geom.Polygon.fromExtent(extent);
+                        selectionOverlay.setGeometry(geometry);
+                    }
+                }, 300));
+
+                return [ onGeoShapeClick, ...onFeatureChange ]
             },
 
             update(source, { source: olSource, layer }) {
@@ -249,10 +273,24 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                     changed = true;
 
                     if (selected) {
-                        const selectedOverlay = new ol.Feature(ol.geom.Polygon.fromExtent(olSource.getExtent()));
+                        let extent;
+                        olSource.forEachFeature(feature => {
+                            const geom = feature.getGeometry();
+                            const featureExtent = geom.getExtent();
+
+                            if (feature.getId() !== VECTOR_FEATURE_SELECTION_OVERLAY) {
+                                if (extent) {
+                                    ol.extent.extend(extent, featureExtent);
+                                } else {
+                                    extent = featureExtent;
+                                }
+                            }
+                        });
+
+                        const selectedOverlay = new ol.Feature(ol.geom.Polygon.fromExtent(extent || [0, 0, 0, 0]));
                         selectedOverlay.setStyle(new ol.style.Style({
-                            fill: new ol.style.Fill({ color: [0, 136, 204, 0.3] }),
-                            stroke: new ol.style.Stroke({ color: [0, 136, 204, 0.5], width: 2 })
+                            fill: new ol.style.Fill({ color: [0, 136, 204, 0.2] }),
+                            stroke: new ol.style.Stroke({ color: [0, 136, 204, 0.3], width: 1 })
                         }));
                         selectedOverlay.setId(VECTOR_FEATURE_SELECTION_OVERLAY)
 

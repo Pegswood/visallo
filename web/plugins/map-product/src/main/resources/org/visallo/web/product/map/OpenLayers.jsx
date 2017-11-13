@@ -139,12 +139,12 @@ define([
                 const nextSource = sourcesByLayerId[layerId];
                 const prevSource = prevProps.sourcesByLayerId[layerId];
 
-                if (layerHelper && layerWithSources && (nextSource || prevSource)) {
+                if (layerHelper && layerWithSources) {
                     const shouldUpdate = _.isFunction(layerHelper.shouldUpdate)
                         ? layerHelper.shouldUpdate(nextSource, prevSource, layerWithSources)
                         : true;
 
-                    if (shouldUpdate && _.isFunction(layerHelper.update)) {
+                    if (shouldUpdate && _.isFunction(layerHelper.update) && nextSource) {
                         const { changed: c = true, fitFeatures = [] } = layerHelper.update(nextSource, layerWithSources) || {};
                         changed = changed || c;
                         if (fitFeatures) fit.push(...fitFeatures)
