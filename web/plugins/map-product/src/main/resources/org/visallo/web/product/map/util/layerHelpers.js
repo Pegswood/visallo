@@ -1,4 +1,13 @@
-define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
+define([
+    'openlayers',
+    '../multiPointCluster',
+    'util/withDataRequest'
+], function(
+    ol,
+    MultiPointCluster,
+    withDataRequest
+) {
+    'use strict';
 
     const FEATURE_HEIGHT = 40;
     const FEATURE_CLUSTER_HEIGHT = 24;
@@ -186,14 +195,13 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
 
         vectorXhr: {
             configure(id, options = {}) {
-                const { mimeType, url, ...config } = options;
-                const source = new ol.source.Vector({ format: getFormatForMimeType(mimeType), url });
+                const source = new ol.source.Vector();
                 const layer = new ol.layer.Vector({
                     ...DEFAULT_LAYER_CONFIG,
                     id,
                     type: 'vectorXhr',
                     source,
-                    ...config
+                    ...options
                 });
 
                 return { source, layer };
@@ -224,35 +232,38 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                     }
                 });
 
-                const onFeatureChange = source.on(['addfeature', 'removefeature'], _.debounce((event) => {
-                    if (!event.feature || event.feature.getId() === VECTOR_FEATURE_SELECTION_OVERLAY) return;
+                const onLayerFeaturesLoaded = source.on('propertyChange', (e) => {
+                    if (e.key === 'status' && e.target.get(e.key) === 'loaded') {
+                        const selectionOverlay = source.getFeatureById(VECTOR_FEATURE_SELECTION_OVERLAY);
 
-                    const selectionOverlay = source.getFeatureById(VECTOR_FEATURE_SELECTION_OVERLAY);
-                    if (selectionOverlay) {
-                        let extent;
-                        source.forEachFeature(feature => {
-                            const geom = feature.getGeometry();
-                            const featureExtent = geom.getExtent();
+                        if (selectionOverlay) {
+                            let extent;
 
-                            if (feature.getId() !== VECTOR_FEATURE_SELECTION_OVERLAY) {
-                                if (extent) {
-                                    ol.extent.extend(extent, featureExtent);
-                                } else {
-                                    extent = featureExtent;
+                            source.forEachFeature(feature => {
+                                const geom = feature.getGeometry();
+                                const featureExtent = geom.getExtent();
+
+                                if (feature.getId() !== VECTOR_FEATURE_SELECTION_OVERLAY) {
+                                    if (extent) {
+                                        ol.extent.extend(extent, featureExtent);
+                                    } else {
+                                        extent = featureExtent;
+                                    }
                                 }
-                            }
-                        });
+                            });
 
-                        const geometry = ol.geom.Polygon.fromExtent(extent);
-                        selectionOverlay.setGeometry(geometry);
+                            const geometry = ol.geom.Polygon.fromExtent(extent);
+                            selectionOverlay.setGeometry(geometry);
+                        }
                     }
-                }, 300));
+                });
 
-                return [ onGeoShapeClick, ...onFeatureChange ]
+                return [ onGeoShapeClick, onLayerFeaturesLoaded ]
             },
 
             update(source, { source: olSource, layer }) {
                 const { element, features, selected } = source;
+                const layerStatus = layer.get('status');
                 const nextFeatures = [];
                 let changed = false;
                 let fitFeatures;
@@ -262,17 +273,13 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                     changed = true;
                 }
 
-                if (!olSource.get('url') || source.url !== olSource.get('url')) {
-                    olSource.set({ url: source.url });
-                    olSource.refresh();
-                    changed = true;
-                }
-
-                if (selected !== olSource.get('selected')) {
+                if (!layerStatus) {
+                    this.loadFeatures(olSource, layer);
+                } else if (selected !== olSource.get('selected')) {
                     olSource.set('selected', selected);
                     changed = true;
 
-                    if (selected) {
+                    if (selected && layerStatus === 'loaded') {
                         let extent;
                         olSource.forEachFeature(feature => {
                             const geom = feature.getGeometry();
@@ -304,6 +311,37 @@ define(['openlayers', '../multiPointCluster'], function(ol, MultiPointCluster) {
                 }
 
                 return { changed };
+            },
+
+            loadFeatures(olSource, layer) {
+                const { id, element, propName, propKey, mimeType } = layer.getProperties();
+
+                layer.set('status', 'loading');
+
+                return withDataRequest.dataRequest('vertex', 'propertyValue', id, propName, propKey).then(source => {
+                    const format = getFormatForMimeType(mimeType);
+                    const dataProjection = format.readProjection(source);
+
+                    if (!dataProjection || !ol.proj.get(dataProjection.getCode())) {
+                        throw new Error(`Unhandled data projection: ${dataProjection} for vertex: ${id}`);
+                    } else {
+                        const features = format.readFeatures(source, {
+                            dataProjection,
+                            featureProjection: 'EPSG:3857'
+                        });
+
+                        features.map(feature => {
+                            feature.set('element', element);
+                        });
+
+                        olSource.addFeatures(features);
+                        layer.set('status', 'loaded');
+                    }
+
+                }).catch(e => {
+                    layer.set('status', { type: 'error', message: e.message });
+                    console.warn(e);
+                });
             }
         }
     };

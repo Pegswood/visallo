@@ -24,6 +24,7 @@ var VisalloAmdExternals = [
     'util/vertex/formatters',
     'util/retina',
     'util/withContextMenu',
+    'util/withDataRequest',
     'util/mapConfig',
      'openlayers',
     'fast-json-patch',

@@ -446,15 +446,11 @@ define([
                         const rawProp = F.vertex.props(el, 'http://visallo.org#raw')[0];
                         addOrUpdateSource({
                             id: el.id,
+                            element: el,
                             type: 'vectorXhr',
                             mimeType,
-                            url: 'vertex/property'
-                                + '?graphVertexId=' + encodeURIComponent(el.id)
-                                + '&propertyName=' + encodeURIComponent(rawProp.name)
-                                + '&propertyKey=' + encodeURIComponent(rawProp.key)
-                                + '&workspaceId=' + encodeURIComponent(workspaceId)
-                                + '&download=true',
-                            element: el,
+                            propName: rawProp.name,
+                            propKey: rawProp.key,
                             selected,
                             styles
                         });
