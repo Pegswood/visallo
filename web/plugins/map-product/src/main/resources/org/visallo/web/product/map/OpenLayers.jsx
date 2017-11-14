@@ -69,8 +69,8 @@ define([
             const { map, layersWithSources } = this.state;
 
             const nextLayerIds = Object.keys(nextProps.sourcesByLayerId);
-            if (nextLayerIds.length !== Object.keys(layersWithSources).length
-                || nextLayerIds.some(layerId => !layersWithSources[layerId])) {
+            if (layersWithSources && (nextLayerIds.length !== Object.keys(layersWithSources).length
+                || nextLayerIds.some(layerId => !layersWithSources[layerId]))) {
                 const previous = Object.keys(prevSourcesByLayerId);
                 const newLayers = [];
 
@@ -106,6 +106,11 @@ define([
                                 this.olEvents.concat(initializer.addEvents(map, layerWithSource, handlers));
                             }
 
+                            const config = nextProps.layerConfig[layerWithSource.layer.get('id')];
+                            if (config) {
+                                layerHelpers.setLayerConfig(config, layerWithSource.layer);
+                            }
+
                             newLayersWithSources[layerId] = layerWithSource;
                             nextLayers.push(layerWithSource.layer);
                         } else {
@@ -124,7 +129,7 @@ define([
 
         componentDidUpdate(prevProps, prevState) {
             const { map, layersWithSources } = this.state;
-            const { product, sourcesByLayerId, layerExtensions } = this.props;
+            const { product, sourcesByLayerId, layerExtensions, layerConfig, viewport, generatePreview } = this.props;
 
             let changed = false;
             let fit = [];
@@ -163,18 +168,21 @@ define([
                 this.applyLayerOrder();
             }
 
-
             if (fit.length) {
                 this.fit({ limitToFeatures: fit });
             }
 
-            if (this.props.viewport && !_.isEmpty(this.props.viewport)) {
-                this.state.map.getView().setCenter(this.props.viewport.pan);
-                this.state.map.getView().setResolution(this.props.viewport.zoom);
+            if (viewport && !_.isEmpty(viewport)) {
+                map.getView().setCenter(viewport.pan);
+                map.getView().setResolution(viewport.zoom);
             }
 
-            if (this.props.generatePreview) {
-                this._updatePreview({ fit: !this.props.viewport });
+            if (map && (!prevState.map || prevProps.layerConfig !== layerConfig)) {
+                this.applyLayerConfig();
+            }
+
+            if (generatePreview) {
+                this._updatePreview({ fit: !viewport });
             } else if (changed) {
                 this.updatePreview();
             }
@@ -430,7 +438,7 @@ define([
         },
 
         configureMap() {
-            const { baseSource, baseSourceOptions = {}, sourcesByLayerId, generatePreview, layerExtensions, ...handlers } = this.props;
+            const { baseSource, baseSourceOptions = {}, sourcesByLayerId, generatePreview, layerExtensions, layerConfig, ...handlers } = this.props;
             const map = new ol.Map({
                 loadTilesWhileInteracting: true,
                 keyboardEventTarget: document,
@@ -453,6 +461,11 @@ define([
 
                 layersWithSources[layerId] = layerWithSource;
                 map.addLayer(layerWithSource.layer);
+
+                const config = layerConfig[layerWithSource.layer.get('id')];
+                if (config) {
+                    layerHelpers.setLayerConfig(config, layerWithSource.layer);
+                }
             };
 
             _.mapObject(layerExtensions, (e, layerId) => {
@@ -495,6 +508,17 @@ define([
                     self.props.onContextTap(event);
                 }
             }));
+//            this.olEvents.push(map.on('change:layerGroup', (event) => {
+//                const layerGroup = event.target;
+//                const layers = layerGroup.getLayers();
+//                const newLayer = event.element;
+//                const layerConfig = this.props.layerConfig;
+//                const config = layerConfig && layerConfig[newLayer.get('id')];
+//
+//                if (config) {
+//                    layerHelpers.setLayerConfig(config, newLayer);
+//                }
+//            }));
 
             const viewport = map.getViewport();
             this.domEvent(viewport, 'contextmenu', function(event) {
@@ -562,6 +586,23 @@ define([
 
             if (newLayers.length) {
                 setLayerOrder(layerOrder.concat(newLayers.reverse()))
+            }
+        },
+
+        applyLayerConfig() {
+            const map = this.state.map;
+            const layerConfig = this.props.layerConfig;
+
+            if (layerConfig) {
+                const layersById = _.indexBy(map.getLayers().getArray(), layer => layer.get('id'));
+
+                _.mapObject(layerConfig, (config, layerId) => {
+                    const layer = layersById[layerId];
+
+                    if (layer) {
+                        layerHelpers.setLayerConfig(config, layersById[layerId]);
+                    }
+                });
             }
         },
 

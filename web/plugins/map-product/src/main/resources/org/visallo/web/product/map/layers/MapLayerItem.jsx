@@ -25,7 +25,7 @@ define([
                 />
                 <div className="layer-title">
                     <div className="title">{ titleRenderer(layer) }</div>
-                    <span className="subtitle" title={statusMessage}>{ statusMessage }</span>
+                    <span className="subtitle" title={statusMessage}>{ statusMessage || null }</span>
                 </div>
                 <div
                     className="layer-icon drag-handle"

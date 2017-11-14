@@ -145,49 +145,6 @@ define([
             return { viewport: this.props.viewport, generatePreview: true }
         },
 
-        render() {
-            const { viewport, generatePreview } = this.state;
-            const { product, registry, panelPadding, setLayerOrder, onSelectElements, onUpdatePreview } = this.props;
-            const { source: baseSource, sourceOptions: baseSourceOptions, ...config } = mapConfig();
-            const layerExtensions = _.indexBy(registry['org.visallo.map.layer'], 'id');
-
-            return (
-                <div className="org-visallo-map" style={{height:'100%'}} ref={r => {this.wrap = r}}>
-                    <OpenLayers
-                        ref={c => {this._openlayers = c}}
-                        product={product}
-                        baseSource={baseSource}
-                        baseSourceOptions={baseSourceOptions}
-                        sourcesByLayerId={this.mapElementsToSources()}
-                        layerExtensions={layerExtensions}
-                        viewport={viewport}
-                        generatePreview={generatePreview}
-                        panelPadding={panelPadding}
-                        clearCaches={this.requestUpdateDebounce}
-                        setLayerOrder={setLayerOrder}
-                        onTap={this.onTap}
-                        onPan={this.onViewport}
-                        onZoom={this.onViewport}
-                        onContextTap={this.onContextTap}
-                        onSelectElements={onSelectElements}
-                        onMouseOver={this.onMouseOver}
-                        onMouseOut={this.onMouseOut}
-                        onUpdatePreview={onUpdatePreview.bind(this, this.props.product.id)}
-                        {...config}
-                />
-                </div>
-            )
-        },
-
-        componentWillReceiveProps(nextProps) {
-            if (nextProps.product.id === this.props.product.id) {
-                this.setState({ viewport: {}, generatePreview: false })
-            } else {
-                this.saveViewport(this.props)
-                this.setState({ viewport: nextProps.viewport || {}, generatePreview: true })
-            }
-        },
-
         componentWillMount() {
             this.caches = {
                 styles: {
@@ -231,6 +188,50 @@ define([
             this.saveViewport(this.props)
         },
 
+        componentWillReceiveProps(nextProps) {
+            if (nextProps.product.id === this.props.product.id) {
+                this.setState({ viewport: {}, generatePreview: false })
+            } else {
+                this.saveViewport(this.props)
+                this.setState({ viewport: nextProps.viewport || {}, generatePreview: true })
+            }
+        },
+
+        render() {
+            const { viewport, generatePreview } = this.state;
+            const { product, registry, panelPadding, layerConfig, setLayerOrder, onSelectElements, onUpdatePreview } = this.props;
+            const { source: baseSource, sourceOptions: baseSourceOptions, ...config } = mapConfig();
+            const layerExtensions = _.indexBy(registry['org.visallo.map.layer'], 'id');
+
+            return (
+                <div className="org-visallo-map" style={{height:'100%'}} ref={r => {this.wrap = r}}>
+                    <OpenLayers
+                        ref={c => {this._openlayers = c}}
+                        product={product}
+                        baseSource={baseSource}
+                        baseSourceOptions={baseSourceOptions}
+                        sourcesByLayerId={this.mapElementsToSources()}
+                        layerExtensions={layerExtensions}
+                        layerConfig={layerConfig}
+                        viewport={viewport}
+                        generatePreview={generatePreview}
+                        panelPadding={panelPadding}
+                        clearCaches={this.requestUpdateDebounce}
+                        setLayerOrder={setLayerOrder}
+                        onTap={this.onTap}
+                        onPan={this.onViewport}
+                        onZoom={this.onViewport}
+                        onContextTap={this.onContextTap}
+                        onSelectElements={onSelectElements}
+                        onMouseOver={this.onMouseOver}
+                        onMouseOut={this.onMouseOut}
+                        onUpdatePreview={onUpdatePreview.bind(this, this.props.product.id)}
+                        {...config}
+                />
+                </div>
+            )
+        },
+
         onTap({map, pixel}) {
             if (!map.hasFeatureAtPixel(pixel)) {
                 this.props.onClearSelection();
@@ -249,7 +250,7 @@ define([
             clusterHover.hide(ol, map, features);
         },
 
-        onContextTap({map, pixel, originalEvent}) {
+        onContextTap({ map, pixel, originalEvent }) {
             const vertexIds = [];
             map.forEachFeatureAtPixel(pixel, cluster => {
                 const features = cluster.get('features');

@@ -53,6 +53,11 @@ define([
     return redux.connect(
 
         (state, props) => {
+            const product = productSelectors.getProduct(state);
+            const layerConfig = product.extendedData
+                && product.extendedData['org-visallo-map-layers']
+                && product.extendedData['org-visallo-map-layers'].config;
+
             return {
                 ...props,
                 workspaceId: state.workspace.currentId,
@@ -66,7 +71,8 @@ define([
                 elements: productSelectors.getElementsInProduct(state),
                 pixelRatio: state.screen.pixelRatio,
                 mimeTypes,
-                style: { height: '100%' }
+                style: { height: '100%' },
+                layerConfig
             }
         },
 
