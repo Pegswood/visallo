@@ -29,6 +29,7 @@ var VisalloAmdExternals = [
      'openlayers',
     'fast-json-patch',
     'updeep',
+    'classnames',
     'react',
     'react-virtualized',
     'create-react-class',

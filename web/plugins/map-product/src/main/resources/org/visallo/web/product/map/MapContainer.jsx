@@ -30,7 +30,7 @@ define([
         identifier: 'org-visallo-map-layers',
         itemComponentPath: 'org/visallo/web/product/map/dist/MapLayersContainer',
         placementHint: 'popover',
-        label: 'Layers',
+        label: i18n('org.visallo.web.product.map.MapWorkProduct.layers.toolbar.item.label'),
         canHandle: (product) => product.kind === 'org.visallo.web.product.map.MapWorkProduct',
         initialize: ({ product, map }) => {
             const layerConfig = product.extendedData && product.extendedData['org-visallo-map-layers'] && product.extendedData['org-visallo-map-layers'].config;

@@ -296,8 +296,8 @@ define([
 
                         const selectedOverlay = new ol.Feature(ol.geom.Polygon.fromExtent(extent || [0, 0, 0, 0]));
                         selectedOverlay.setStyle(new ol.style.Style({
-                            fill: new ol.style.Fill({ color: [0, 136, 204, 0.2] }),
-                            stroke: new ol.style.Stroke({ color: [0, 136, 204, 0.3], width: 1 })
+                            fill: new ol.style.Fill({ color: [0, 136, 204, 0.3] }),
+                            stroke: new ol.style.Stroke({ color: [0, 136, 204, 0.4], width: 1 })
                         }));
                         selectedOverlay.setId(overlayId)
 
@@ -323,7 +323,7 @@ define([
                     const dataProjection = format.readProjection(source);
 
                     if (!dataProjection || !ol.proj.get(dataProjection.getCode())) {
-                        throw new Error(`Unhandled data projection: ${dataProjection} for vertex: ${id}`);
+                        throw new Error('unhandledDataProjection');
                     } else {
                         const features = format.readFeatures(source, {
                             dataProjection,
@@ -335,8 +335,11 @@ define([
                     }
 
                 }).catch(e => {
-                    layer.set('status', { type: 'error', message: e.message });
-                    console.warn(e);
+                    const message = e.message === 'unhandledDataProjection'
+                        ? i18n('org.visallo.web.product.map.MapWorkProduct.layer.error.data.format')
+                        : i18n('org.visallo.web.product.map.MapWorkProduct.layer.error');
+
+                    layer.set('status', { type: 'error', message });
                 });
             }
         }

@@ -1,23 +1,32 @@
 define([
     'prop-types',
+    'classnames',
     'react-sortable-hoc',
     'util/vertex/formatters'
 ], function(
     PropTypes,
+    classNames,
     { SortableElement },
     F) {
 
     const MapLayerItem = ({ layer, style, toggleable, onToggleLayer }) => {
+        const layerStatus = layer.get('status');
+        const statusMessage = _.isObject(layerStatus) && layerStatus.message;
+        const hasError = _.isObject(layerStatus) && layerStatus.type === 'error';
+
         return (
-            <div className="layer-item" style={{ ...style, zIndex: 50 }}>
+            <div className={classNames('layer-item', { 'error': hasError })} style={{ ...style, zIndex: 50 }}>
                 <input
                     type="checkbox"
                     checked={layer.getVisible()}
-                    disabled={!toggleable}
+                    disabled={!toggleable || hasError}
                     onChange={(e) => { onToggleLayer(layer)}}
                     onClick={(e) => { e.stopPropagation() }}
                 />
-                <div className="layer-title">{ titleRenderer(layer) }</div>
+                <div className="layer-title">
+                    <div className="title">{ titleRenderer(layer) }</div>
+                    <span className="subtitle" title={statusMessage}>{ statusMessage }</span>
+                </div>
                 <div
                     className="layer-icon drag-handle"
                     title={i18n('org.visallo.web.product.map.MapWorkProduct.layers.sort.help')}
@@ -34,7 +43,7 @@ define([
         } else if (element) {
             return F.vertex.title(element);
         } else {
-            return i18n('org.visallo.map.layer.no.title');
+            return i18n('org.visallo.web.product.map.MapWorkProduct.layer.no.title');
         }
     };
 
