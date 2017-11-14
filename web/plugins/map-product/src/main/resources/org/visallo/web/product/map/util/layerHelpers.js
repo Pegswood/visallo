@@ -207,43 +207,42 @@ define([
                 return { source, layer };
             },
 
-            addEvents(map, { source, layer }, handlers) {
+            addEvents(map, { source: olSource, layer }, handlers) {
                 const elements = { vertices: [], edges: [] };
                 const element = layer.get('element');
                 const key = element.type === 'vertex' ? 'vertices' : 'edges';
+                const overlayId = getOverlayIdForLayer(layer);
 
                 elements[key].push(element.id);
 
                 const onGeoShapeClick = map.on('click', (e) => {
                     const { map, pixel } = e;
-
                     const featuresAtPixel = map.getFeaturesAtPixel(pixel);
+                    const sourceFeatures = olSource.getFeatures();
 
-                    if (featuresAtPixel && featuresAtPixel.length === 1) {
-                        const feature = featuresAtPixel[0];
-
-                        if (source.getFeatures().includes(feature)) {
-                            if (feature.getId() === VECTOR_FEATURE_SELECTION_OVERLAY) {
-                                handlers.onSelectElements({ vertices: [], edges: [] });
-                            } else {
-                                handlers.onSelectElements(elements);
-                            }
+                    if (featuresAtPixel) {
+                        if (featuresAtPixel.length === 1
+                            && featuresAtPixel[0].getId() === overlayId
+                            && olSource.getFeatureById(overlayId)) {
+                            handlers.onSelectElements({ vertices: [], edges: [] });
+                        } else if (featuresAtPixel.every(feature => sourceFeatures.includes(feature))) {
+                            handlers.onSelectElements(elements);
                         }
                     }
                 });
 
-                const onLayerFeaturesLoaded = source.on('propertyChange', (e) => {
+                const onLayerFeaturesLoaded = olSource.on('propertyChange', (e) => {
                     if (e.key === 'status' && e.target.get(e.key) === 'loaded') {
-                        const selectionOverlay = source.getFeatureById(VECTOR_FEATURE_SELECTION_OVERLAY);
+                        const selectionOverlay = olSource.getFeatureById(overlayId);
 
                         if (selectionOverlay) {
                             let extent;
 
-                            source.forEachFeature(feature => {
+                            olSource.forEachFeature(feature => {
                                 const geom = feature.getGeometry();
                                 const featureExtent = geom.getExtent();
 
-                                if (feature.getId() !== VECTOR_FEATURE_SELECTION_OVERLAY) {
+                                if (feature.getId() !== overlayId) {
                                     if (extent) {
                                         ol.extent.extend(extent, featureExtent);
                                     } else {
@@ -276,6 +275,7 @@ define([
                 if (!layerStatus) {
                     this.loadFeatures(olSource, layer);
                 } else if (selected !== olSource.get('selected')) {
+                    const overlayId = getOverlayIdForLayer(layer);
                     olSource.set('selected', selected);
                     changed = true;
 
@@ -285,7 +285,7 @@ define([
                             const geom = feature.getGeometry();
                             const featureExtent = geom.getExtent();
 
-                            if (feature.getId() !== VECTOR_FEATURE_SELECTION_OVERLAY) {
+                            if (feature.getId() !== overlayId) {
                                 if (extent) {
                                     ol.extent.extend(extent, featureExtent);
                                 } else {
@@ -299,11 +299,11 @@ define([
                             fill: new ol.style.Fill({ color: [0, 136, 204, 0.2] }),
                             stroke: new ol.style.Stroke({ color: [0, 136, 204, 0.3], width: 1 })
                         }));
-                        selectedOverlay.setId(VECTOR_FEATURE_SELECTION_OVERLAY)
+                        selectedOverlay.setId(overlayId)
 
                         olSource.addFeature(selectedOverlay);
                     } else {
-                        const selectedOverlay = olSource.getFeatureById(VECTOR_FEATURE_SELECTION_OVERLAY);
+                        const selectedOverlay = olSource.getFeatureById(overlayId);
                         if (selectedOverlay) {
                             olSource.removeFeature(selectedOverlay);
                         }
@@ -328,10 +328,6 @@ define([
                         const features = format.readFeatures(source, {
                             dataProjection,
                             featureProjection: 'EPSG:3857'
-                        });
-
-                        features.map(feature => {
-                            feature.set('element', element);
                         });
 
                         olSource.addFeatures(features);
@@ -537,6 +533,10 @@ define([
             case 'application/vnd.google-earth.kml+xml':
                 return new ol.format.KML();
         }
+    }
+
+    function getOverlayIdForLayer(layer) {
+        return layer.get('id') + '|' + VECTOR_FEATURE_SELECTION_OVERLAY;
     }
 
     function getRadiusFromStyles(styles) {
