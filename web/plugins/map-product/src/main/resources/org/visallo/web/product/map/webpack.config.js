@@ -72,7 +72,7 @@ var baseConfig = {
   devtool: 'source-map',
   plugins: [
     new webpack.optimize.UglifyJsPlugin({
-        mangle: true,
+        mangle: false, //TODO
         sourceMap: true,
         compress: {
             drop_debugger: false,

@@ -31,21 +31,7 @@ define([
         itemComponentPath: 'org/visallo/web/product/map/dist/MapLayersContainer',
         placementHint: 'popover',
         label: i18n('org.visallo.web.product.map.MapWorkProduct.layers.toolbar.item.label'),
-        canHandle: (product) => product.kind === 'org.visallo.web.product.map.MapWorkProduct',
-        initialize: ({ product, map }) => {
-            const layerConfig = product.extendedData && product.extendedData['org-visallo-map-layers'] && product.extendedData['org-visallo-map-layers'].config;
-            if (layerConfig) {
-                const layersById = _.indexBy(map.getLayers().getArray(), layer => layer.get('id'));
-
-                _.mapObject(layerConfig, (config, layerId) => {
-                    const layer = layersById[layerId];
-
-                    if (layer) {
-                        layerHelpers.setLayerConfig(config, layersById[layerId]);
-                    }
-                });
-            }
-        }
+        canHandle: (product) => product.kind === 'org.visallo.web.product.map.MapWorkProduct'
     });
 
     const mimeTypes = [VISALLO_MIMETYPES.ELEMENTS];

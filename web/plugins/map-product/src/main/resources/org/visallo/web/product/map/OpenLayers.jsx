@@ -88,7 +88,7 @@ define([
                 const existingLayersById = _.indexBy(nextLayers, layer => layer.get('id'));
 
                 previous.forEach(layerId => {
-                    const layerIndex = nextLayers.indexOf(layer => layer.get('id') === layerId);
+                    const layerIndex = nextLayers.findIndex(layer => layer.get('id') === layerId);
                     nextLayers.splice(layerIndex, 1);
                 });
 
@@ -121,8 +121,11 @@ define([
 
                 layerGroup.setLayers(new ol.Collection(nextLayers));
 
-                if (Object.keys(newLayersWithSources).length) {
-                    this.setState({ layersWithSources: { ...layersWithSources, ...newLayersWithSources }});
+                if (previous.length || Object.keys(newLayersWithSources).length) {
+                    this.setState({ layersWithSources: {
+                        ..._.omit(layersWithSources, previous),
+                        ...newLayersWithSources
+                    }});
                 }
             }
         },
