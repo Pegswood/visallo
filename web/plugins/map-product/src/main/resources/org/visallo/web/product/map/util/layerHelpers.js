@@ -418,8 +418,8 @@ define([
         }
     };
 
-    function setLayerConfig(config, layer) {
-        const { visible, opacity, zIndex, ...properties } = config;
+    function setLayerConfig(config = {}, layer) {
+        const { visible = true, opacity = 1, zIndex = 0, ...properties } = config;
 
         _.mapObject(properties, (value, key) => {
             if (value === null) {
@@ -429,9 +429,9 @@ define([
             }
         })
 
-        if (visible !== undefined) { layer.setVisible(visible) }
-        if (opacity !== undefined) { layer.setOpacity(opacity) }
-        if (zIndex !== undefined) { layer.setZIndex(zIndex) }
+        layer.setVisible(visible)
+        layer.setOpacity(opacity)
+        layer.setZIndex(zIndex)
     }
 
     function syncFeatures({ features }, { source }) {

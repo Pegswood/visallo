@@ -25,13 +25,17 @@ define([
 
         render() {
             const { futureIndex } = this.state;
-            const { baseLayer, layers, editable, ol, map } = this.props;
-            const layerList = futureIndex ? arrayMove(layers, futureIndex[0], futureIndex[1]) : layers;
+            const { baseLayer, layers, layersConfig, editable, ol, map } = this.props;
+            let layerList = futureIndex ? arrayMove(layers, futureIndex[0], futureIndex[1]) : layers;
+            layerList = layerList.map(layer => ({
+                config: layersConfig[layer.get('id')],
+                layer
+            }));
 
             return (
                 <div className="map-layers">
                     <MapLayersList
-                        baseLayer={baseLayer}
+                        baseLayer={{ config: layersConfig['base'], layer: baseLayer }}
                         layers={layerList}
                         editable={editable}
                         onToggleLayer={this.onToggleLayer}

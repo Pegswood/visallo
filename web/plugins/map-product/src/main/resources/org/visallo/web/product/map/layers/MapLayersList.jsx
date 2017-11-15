@@ -69,13 +69,14 @@ define([
 
     const mapLayerItemRenderer = (itemProps) => (listProps) => {
         const { editable, ...rest } = itemProps;
-        const { index, style, key, value: layer } = listProps;
+        const { index, style, key, value: { config, layer }} = listProps;
 
         return (
             <MapLayerItem
                 key={key}
                 index={index}
                 layer={layer}
+                config={config}
                 extension={'layer'}
                 style={style}
                 toggleable={editable}

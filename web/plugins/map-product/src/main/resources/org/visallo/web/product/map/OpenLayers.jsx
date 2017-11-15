@@ -106,7 +106,7 @@ define([
                                 this.olEvents.concat(initializer.addEvents(map, layerWithSource, handlers));
                             }
 
-                            const config = nextProps.layerConfig[layerWithSource.layer.get('id')];
+                            const config = nextProps.layerConfig && nextProps.layerConfig[layerWithSource.layer.get('id')];
                             if (config) {
                                 layerHelpers.setLayerConfig(config, layerWithSource.layer);
                             }
@@ -167,7 +167,9 @@ define([
             const prevLayerOrder = prevProps.product.extendedData
                 && prevProps.product.extendedData[LAYERS_EXTENDED_DATA_KEY]
                 && prevProps.product.extendedData[LAYERS_EXTENDED_DATA_KEY].layerOrder;
-            if (map && (map !== prevState.map || newLayerOrder !== prevLayerOrder)) {
+            if (map && (map !== prevState.map || newLayerOrder !== prevLayerOrder)
+                || prevState.layersWithSources.length !== Object.keys(layersWithSources).length
+                || prevState.layersWithSource.some(layerId => !layersWithSources[layerId])) {
                 this.applyLayerOrder();
             }
 
@@ -465,7 +467,7 @@ define([
                 layersWithSources[layerId] = layerWithSource;
                 map.addLayer(layerWithSource.layer);
 
-                const config = layerConfig[layerWithSource.layer.get('id')];
+                const config = layerConfig && layerConfig[layerWithSource.layer.get('id')];
                 if (config) {
                     layerHelpers.setLayerConfig(config, layerWithSource.layer);
                 }
@@ -511,17 +513,6 @@ define([
                     self.props.onContextTap(event);
                 }
             }));
-//            this.olEvents.push(map.on('change:layerGroup', (event) => {
-//                const layerGroup = event.target;
-//                const layers = layerGroup.getLayers();
-//                const newLayer = event.element;
-//                const layerConfig = this.props.layerConfig;
-//                const config = layerConfig && layerConfig[newLayer.get('id')];
-//
-//                if (config) {
-//                    layerHelpers.setLayerConfig(config, newLayer);
-//                }
-//            }));
 
             const viewport = map.getViewport();
             this.domEvent(viewport, 'contextmenu', function(event) {
@@ -599,12 +590,9 @@ define([
             if (layerConfig) {
                 const layersById = _.indexBy(map.getLayers().getArray(), layer => layer.get('id'));
 
-                _.mapObject(layerConfig, (config, layerId) => {
-                    const layer = layersById[layerId];
-
-                    if (layer) {
-                        layerHelpers.setLayerConfig(config, layersById[layerId]);
-                    }
+                _.mapObject(layersById, (layer, layerId) => {
+                    const config = layerConfig[layerId];
+                    layerHelpers.setLayerConfig(config, layersById[layerId]);
                 });
             }
         },
