@@ -483,7 +483,8 @@ define([
                     }),
                     iconUrlSelected = `${iconUrl}&selected=true`;
 
-                addOrUpdateSource({ id: 'cluster', ...layer }, {
+                if (geoLocations.length) {
+                    addOrUpdateSource({ id: 'cluster', ...layer }, {
                     id: el.id,
                     element: el,
                     selected,
@@ -495,7 +496,8 @@ define([
                     styles,
                     geometry,
                     geoLocations
-                });
+                    });
+                }
             })
 
             return sources;
