@@ -265,9 +265,17 @@ define([
         },
 
         _updatePreview() {
-            if (this.unmounted) return;
-            const { cy } = this.state;
-            this.props.onUpdatePreview(cy.png(DEFAULT_PNG));
+            if (this.idleUpdatePosition) {
+                cancelIdleCallback(this.idleUpdatePosition);
+            }
+            this.idleUpdatePosition = requestIdleCallback(() => {
+                if (this.unmounted) return;
+
+                const { cy } = this.state;
+                const png = cy.png(DEFAULT_PNG);
+
+                this.props.onUpdatePreview(png);
+            })
         },
 
         prepareConfig() {
@@ -284,6 +292,9 @@ define([
                             }
                         });
                     });
+                    cy.on('position', () => {
+                        this.updatePreview();
+                    })
                     cy.on('cxttap', (event) => {
                         const {target, cy} = event;
                         if (cy === target) {

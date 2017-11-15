@@ -35,7 +35,7 @@ define([
     const generateCompoundEdgeId = edge => edge.outVertexId + edge.inVertexId + edge.label;
     const isGhost = cyElement => cyElement && cyElement._private && cyElement._private.data && cyElement._private.data.animateTo;
     const isValidElement = cyElement => cyElement && cyElement.is('.c,.v,.e,.partial') && !isGhost(cyElement);
-    const isValidNode = cyElement => cyElement && cyElement.is('node.c,node.v,node.partial,node.ancillary') && !isGhost(cyElement);
+    const isValidNode = cyElement => cyElement && cyElement.is('node.c,node.v,node.partial') && !isGhost(cyElement);
     const canUpdatePosition = isValidNode;
     const canSelect = isValidElement;
     const canRemove = isValidElement;
