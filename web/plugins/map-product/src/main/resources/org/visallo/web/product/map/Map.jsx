@@ -80,7 +80,7 @@ define([
      * @param {org.visallo.map.geometry~canHandle} canHandle Function that
      * determines if geometry function applies for elements.
      * @param {org.visallo.map.geometry~geometry} geometry Geometry to use for feature
-     * @param {string} [layerPosition=below] The id of the existing layer this feature is placed in //TODO
+     * @param {org.visallo.map.geometry~layer} [layer] Configuration to determine which layer to place this feature at
      * @example
      * require(['openlayers'], function(ol) {
      *     registry.registerExtension('org.visallo.map.geometry', {
@@ -90,6 +90,10 @@ define([
      *         geometry: function(productEdgeInfo, element, ontology) {
      *             const { lon, lat } = getGeo(element)
      *             return new ol.geom.Point(ol.proj.fromLonLat([lon, lat]))
+     *         },
+     *         layer: {
+     *              id: 'myLayer',
+     *              type: 'ancillary'
      *         }
      *     });
      * })
@@ -105,23 +109,41 @@ define([
 
 
     /**
-     * Extension to initialize [layers](http://openlayers.org/en/latest/apidoc/ol.layer.Layer.html) on the map
+     * Extension to initialize additional [layers](http://openlayers.org/en/latest/apidoc/ol.layer.Layer.html) on map load.
+     * The `base` tile layer will always be initialized
      *
-     * TODO
+     * @param {string} id Unique id for this item
+     * @param {(string|org.visallo.map.layer~layerType)} type The string id of a layer type: `base`, `cluster`,
+            `ancillary`, or `vectorXhr`, or a new [layerType]{@link org.visallo.map.layer~layerType} object
+     * @param {object} [options] Extra options that will be passed to `layerType.configure()`
+     * @example
+     * require(['openlayers', 'public/v1/api'], function(ol, api) {
+     *     api.registry.registerExtension('org.visallo.map.layer', {
+     *         id: 'myCustomLayer',
+     *         type: 'ancillary',
+     *         shouldUpdate: function(nextSource, prevSource, layerWithSource) {
+     *              return Object.keys(nextSource).some(key => !(key in prevSource) || nextSource[key] !== prevSource[key])
+     *         },
+     *         options: {
+     *             zIndex: 4
+     *         }
+     *     });
+     * })
      */
     registry.documentExtensionPoint('org.visallo.map.layer',
         'Initialize layers on the map',
         function(e) {
             return (_.isString(e.id)
-                && _.isString(e.type)
-                && (!e.configure || _.isFunction(e.configure))
-                && (!e.addEvents || _.isFunction(e.addEvents))
-                && (!e.update || _.isFunction(e.update))
-                && (!e.shouldUpdate || _.isFunction(e.shouldUpdate))
+                && (_.isString(e.type) || (_.isObject(e.type) && (
+                    (!e.configure || _.isFunction(e.configure))
+                    && (!e.addEvents || _.isFunction(e.addEvents))
+                    && (!e.update || _.isFunction(e.update))
+                    && (!e.shouldUpdate || _.isFunction(e.shouldUpdate))
+                )))
                 && (!e.options || _.isObject(e.options))
             );
         },
-        'http://docs.visallo.org/extension-points/front-end/mapLayers' //TODO
+        'http://docs.visallo.org/extension-points/front-end/mapLayers'
     );
 
 
@@ -319,6 +341,14 @@ define([
                          */
                         const geo = this.caches.geometries.geometry.getOrUpdate(geometry, edgeInfo, element, ontology)
                         if (geo) {
+                            /**
+                             * Provide a layer configuration object to specify which layer this geometry should be placed on
+                             *
+                             * @typedef org.visallo.map.geometry~layer
+                             * @property {string} id The id of the layer
+                             * @property {string} type The type of layer
+                             *
+                             */
                             geometries.push({
                                 geometry: geo,
                                 layer

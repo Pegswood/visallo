@@ -371,7 +371,7 @@ define([
             const view = map.getView();
             const extent = limitToFeatures.length ?
                 this.extentFromFeatures(limitToFeatures) :
-                layersWithSources.cluster.source.getExtent(); //TODO: concat all features/extents of element layers
+                layersWithSources.cluster.source.getExtent();
             const changeZoom = limitToFeatures.length !== 1;
 
             if (!ol.extent.isEmpty(extent)) {
@@ -644,7 +644,8 @@ define([
          * @property {object} product The map product
          * @property {object} ol The [Openlayers Api](http://openlayers.org/en/latest/apidoc/)
          * @property {object} map [map](http://openlayers.org/en/latest/apidoc/ol.Map.html) instance
-         * @property {object} cluster TODO deprecate + add layersWithSources
+         * @property {Object.<string, layerWithSource>} layersWithSources Keyed by the id of the layer, the map's rendered layers with their sources
+         * @property {object} cluster deprecated, access this from inside {@link org.visallo.product.toolbar.item~layersWithSources} instead
          * @property {object} cluster.clusterSource [multiPointCluster](https://github.com/visallo/visallo/blob/master/web/plugins/map-product/src/main/resources/org/visallo/web/product/map/multiPointCluster.js) that implements the [`ol.source.Cluster`](http://openlayers.org/en/latest/apidoc/ol.source.Cluster.html) interface to cluster the `source` features.
          * @property {object} cluster.source The [`ol.source.Vector`](http://openlayers.org/en/latest/apidoc/ol.source.Vector.html) source of all map pins before clustering.
          * @property {object} cluster.layer The [`ol.layer.Vector`](http://openlayers.org/en/latest/apidoc/ol.layer.Vector.html) pin layer
@@ -655,6 +656,16 @@ define([
             let props = {};
 
             if (map && layersWithSources) {
+                /**
+                 * @typedef {object} org.visallo.product.toolbar.item~layerWithSource
+                 * @property {object} source The [`ol.source`](http://openlayers.org/en/latest/apidoc/ol.source.html) of the layer
+                 * @property {object} layer The [`ol.layer`](http://openlayers.org/en/latest/apidoc/ol.layer.html) rendered in the map
+                 */
+                /**
+                 * @typedef {object.<string,layerWithSource>} org.visallo.product.toolbar.item~layersWithSources
+                 *
+                 * Keyed by layerId, the map's rendered sources with the layers they are backing
+                 */
                 props = { product, ol, map, cluster: layersWithSources.cluster, layersWithSources, requestUpdate }
             }
 
