@@ -11,6 +11,15 @@ define([
 
 const VirtualList = createReactClass({
 
+    propTypes: {
+        items: PropTypes.array.isRequired,
+        rowRenderer: PropTypes.func,
+        className: PropTypes.string,
+        rowHeight: PropTypes.number,
+        width: PropTypes.number,
+        height: PropTypes.number
+    },
+
     render() {
         const { items, rowRenderer, className, rowHeight, width, height } = this.props;
 

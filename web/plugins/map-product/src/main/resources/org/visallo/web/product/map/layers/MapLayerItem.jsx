@@ -48,5 +48,13 @@ define([
         }
     };
 
+    MapLayerItem.propTypes = {
+        layer: PropTypes.object.isRequired,
+        config: PropTypes.object,
+        style: PropTypes.object,
+        toggleable: PropTypes.bool,
+        onToggleLayer: PropTypes.func.isRequired
+    };
+
     return SortableElement(MapLayerItem);
 });

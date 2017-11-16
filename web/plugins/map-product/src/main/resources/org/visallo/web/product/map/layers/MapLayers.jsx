@@ -13,6 +13,25 @@ define([
 
     const MapLayers = createReactClass({
 
+        propTypes: {
+            product: PropTypes.shape({
+                previewMD5: PropTypes.string,
+                extendedData: PropTypes.shape({
+                    vertices: PropTypes.object,
+                    edges: PropTypes.object }
+                ).isRequired
+            }).isRequired,
+            map: PropTypes.object.isRequired,
+            baseLayer: PropTypes.object,
+            layersConfig: PropTypes.object,
+            layerOrder: PropTypes.array.isRequired,
+            layerIds: PropTypes.array.isRequired,
+            layers: PropTypes.array.isRequired,
+            editable: PropTypes.bool,
+            setLayerOrder: PropTypes.func.isRequired,
+            updateLayerConfig: PropTypes.func.isRequired
+        },
+
         getInitialState() {
             return { futureIndex: null }
         },

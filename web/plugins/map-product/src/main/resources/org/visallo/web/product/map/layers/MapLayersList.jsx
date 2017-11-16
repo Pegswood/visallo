@@ -67,6 +67,13 @@ define([
         </div>
     );
 
+    MapLayersList.propTypes = {
+        baseLayer: PropTypes.object,
+        layers: PropTypes.array.isRequired,
+        editable: PropTypes.bool,
+        onOrderLayer: PropTypes.func.isRequired
+    };
+
     const mapLayerItemRenderer = (itemProps) => (listProps) => {
         const { editable, ...rest } = itemProps;
         const { index, style, key, value: { config, layer }} = listProps;
