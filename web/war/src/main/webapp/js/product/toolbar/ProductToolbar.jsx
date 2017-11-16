@@ -3,7 +3,6 @@ define([
     'prop-types',
     'configuration/plugins/registry',
     'components/RegistryInjectorHOC',
-    'util/deepObjectCache',
     './ProductToolbarItem',
     './ProductToolbarMenu'
 ], function(
@@ -11,7 +10,6 @@ define([
     PropTypes,
     registry,
     RegistryInjectorHOC,
-    DeepObjectCache,
     ProductToolbarItem,
     ProductToolbarMenu) {
     'use strict';
@@ -24,7 +22,7 @@ define([
      * @param {func} canHandle Given `product` should this item be placed
      * @param {func} [initialize] Allows configuration of the product environment with same parameters passed to
      *   {@link org.visallo.product.toolbar.item~Component}.
-     * @param {func} [teardown] Allows cleanup of anthing created in `initialize`
+     * @param {func} [teardown] Allows cleanup of anything created in `initialize`
      * @param {string} [placementHint=menu] How this item should be displayed in the toolbar
      * * `menu` inside the hamburger menu list
      * * `popover` as a button that will expand a popover where the component is rendered.
