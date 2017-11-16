@@ -72,6 +72,7 @@ define([
         },
         'http://docs.visallo.org/extension-points/front-end/mapStyle'
     );
+    registry.markUndocumentedExtensionPoint('org.visallo.map.style');
 
     /**
      * Extension to customize geometry of map features/pins using the
@@ -104,12 +105,11 @@ define([
         },
         'http://docs.visallo.org/extension-points/front-end/mapGeometry'
     );
+    registry.markUndocumentedExtensionPoint('org.visallo.map.geometry');
 
 
     /**
      * Extension to initialize [layers](http://openlayers.org/en/latest/apidoc/ol.layer.Layer.html) on the map
-     *
-     * TODO
      */
     registry.documentExtensionPoint('org.visallo.map.layer',
         'Initialize layers on the map',
@@ -123,8 +123,9 @@ define([
                 && (!e.options || _.isObject(e.options))
             );
         },
-        'http://docs.visallo.org/extension-points/front-end/mapLayers' //TODO
+        'http://docs.visallo.org/extension-points/front-end/mapLayers'
     );
+    registry.markUndocumentedExtensionPoint('org.visallo.map.layer');
 
     const Map = createReactClass({
 
