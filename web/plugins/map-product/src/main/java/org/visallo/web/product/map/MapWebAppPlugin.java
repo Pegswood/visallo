@@ -24,6 +24,9 @@ public class MapWebAppPlugin implements WebAppPlugin {
 
         app.registerJavaScript("/org/visallo/web/product/map/plugin.js");
 
+        app.registerJavaScript("/org/visallo/web/product/map/detail/pluginGeoShapeDetail.js", true);
+
+        app.registerCompiledJavaScript("/org/visallo/web/product/map/dist/geoShapePreview.js");
         app.registerCompiledJavaScript("/org/visallo/web/product/map/dist/MapLayersContainer.js");
         app.registerCompiledJavaScript("/org/visallo/web/product/map/dist/Map.js");
         app.registerCompiledJavaScript("/org/visallo/web/product/map/dist/actions-impl.js");
