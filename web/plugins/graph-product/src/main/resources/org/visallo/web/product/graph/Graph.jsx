@@ -773,11 +773,13 @@ define([
                 const { pageX, pageY } = originalEvent;
                 if (target.is('node.c')) {
                     this.props.onCollapsedItemMenu(originalEvent.target, target.id(), { x: pageX, y: pageY });
-                } else if (target.isNode()) {
-                    this.props.onVertexMenu(originalEvent.target, target.id(), { x: pageX, y: pageY });
-                } else {
-                    const edgeIds = _.pluck(target.data('edgeInfos'), 'edgeId');
-                    this.props.onEdgeMenu(originalEvent.target, edgeIds, { x: pageX, y: pageY });
+                } else if (isValidElement(target)) {
+                    if (target.isNode()) {
+                        this.props.onVertexMenu(originalEvent.target, target.id(), { x: pageX, y: pageY });
+                    } else {
+                        const edgeIds = _.pluck(target.data('edgeInfos'), 'edgeId');
+                        this.props.onEdgeMenu(originalEvent.target, edgeIds, { x: pageX, y: pageY });
+                    }
                 }
             }
         },
