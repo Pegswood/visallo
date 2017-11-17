@@ -1151,7 +1151,9 @@ define([
                         }
                         let classes = 'e';
                         if (edgeInfos.some(({ edgeId }) => edgeId in focusing.edges)) {
-                            classes += ' focusing';
+                            classes += ' focus';
+                        } else if (focusing.isFocusing) {
+                            classes += ' focus-dim';
                         }
 
                         const edgeData = {
@@ -1378,6 +1380,9 @@ define([
         if (_.any(edgeInfos, info => info.edgeId in focusing.edges)) {
             return classes + ' focus';
         }
+        if (focusing.isFocusing) {
+            return classes + ' focus-dim'
+        }
         return classes;
     };
 
@@ -1495,6 +1500,9 @@ define([
         const classes = cls.join(' ');
         if (id in focusing.vertices) {
             return classes + ' focus';
+        }
+        if (focusing.isFocusing) {
+            return classes + ' focus-dim'
         }
         return classes;
     };
