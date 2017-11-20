@@ -35,5 +35,6 @@ public class MapWebAppPlugin implements WebAppPlugin {
         app.registerCompiledWebWorkerJavaScript("/org/visallo/web/product/map/dist/plugin-worker.js");
 
         app.registerLess("/org/visallo/web/product/map/layers/mapLayers.less");
+        app.registerLess("/org/visallo/web/product/map/detail/geoShapeDetail.less");
     }
 }

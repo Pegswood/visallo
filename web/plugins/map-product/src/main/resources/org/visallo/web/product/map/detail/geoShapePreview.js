@@ -25,12 +25,6 @@ define([
         this.before('initialize', function(node, config) {
             this.element = config.model;
 
-            $(node).css({
-                'height': '240px',
-                'margin-top': '1px',
-                'overflow': 'hidden'
-            })
-
             this.unsubscribePadding = visalloData.storePromise.then(store => {
                 const paddingSelector = (state) => state.panel.padding;
                 store.observe(paddingSelector, (nextPadding, prevPadding) => {
