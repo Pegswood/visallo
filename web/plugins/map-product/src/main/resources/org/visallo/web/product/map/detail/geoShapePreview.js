@@ -12,6 +12,8 @@ define([
     F) {
     'use strict';
 
+    const featureCache = {};
+
     return api.defineComponent(GeoShapePreview);
 
     function GeoShapePreview() {
@@ -28,11 +30,24 @@ define([
                 'margin-top': '1px',
                 'overflow': 'hidden'
             })
+
+            this.unsubscribePadding = visalloData.storePromise.then(store => {
+                const paddingSelector = (state) => state.panel.padding;
+                store.observe(paddingSelector, (nextPadding, prevPadding) => {
+                    if (nextPadding && (!prevPadding || nextPadding.right !== prevPadding.right)) {
+                        this.onDetailPaneResize();
+                    }
+                });
+            })
         });
 
         this.after('initialize', function() {
             this.setupMap();
         })
+
+        this.before('teardown', function() {
+            this.unsubscribePadding();
+        });
 
         this.setupMap = function() {
             const { vectorXhr: layerHelper, tile } = layerHelpers.byType;
@@ -64,12 +79,27 @@ define([
             this.geoShapeLayer = geoShapeLayer;
             this.map = map;
 
-            layerHelper.loadFeatures(olSource, geoShapeLayer)
-                .then(() => {
-                    const view = this.map.getView();
-                    const olSource = this.geoShapeLayer.getSource();
-                    view.fit(olSource.getExtent());
-                });
+            let featurePromise = featureCache[this.element.id] || layerHelper.loadFeatures(olSource, geoShapeLayer);
+
+            Promise.resolve(featurePromise).then((features) => {
+                const view = this.map.getView();
+                const olSource = this.geoShapeLayer.getSource();
+
+                olSource.addFeatures(features);
+                this.geoShapeLayer.set('status', 'loaded');
+
+                view.fit(olSource.getExtent());
+
+                if (!featureCache[this.element.id]) {
+                    featureCache[this.element.id] = features;
+                }
+            });
         };
+
+        this.onDetailPaneResize = function() {
+            if (this.map) {
+                this.map.updateSize();
+            }
+        }
     }
 });

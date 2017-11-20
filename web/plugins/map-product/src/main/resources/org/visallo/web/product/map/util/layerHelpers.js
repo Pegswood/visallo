@@ -289,7 +289,10 @@ define([
                 }
 
                 if (!layerStatus) {
-                    this.loadFeatures(olSource, layer);
+                    this.loadFeatures(olSource, layer).then((features) => {
+                        olSource.addFeatures(features);
+                        layer.set('status', 'loaded');
+                    });
                 } else if (selected !== olSource.get('selected')) {
                     const overlayId = getOverlayIdForLayer(layer);
                     olSource.set('selected', selected);
@@ -346,8 +349,7 @@ define([
                             featureProjection: 'EPSG:3857'
                         });
 
-                        olSource.addFeatures(features);
-                        layer.set('status', 'loaded');
+                        return features;
                     }
 
                 }).catch(e => {
