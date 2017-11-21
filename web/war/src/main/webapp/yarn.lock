@@ -3301,6 +3301,10 @@ js-beautify@1.5.10:
     mkdirp "~0.5.0"
     nopt "~3.0.1"
 
+js-polyfills@^0.1.41:
+  version "0.1.41"
+  resolved "https://registry.yarnpkg.com/js-polyfills/-/js-polyfills-0.1.41.tgz#00f3f029c3be054cb8854dd2da320660d0433731"
+
 js-tokens@^3.0.0:
   version "3.0.1"
   resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-3.0.1.tgz#08e9f132484a2c45a30907e9dc4d5567b7f114d7"
