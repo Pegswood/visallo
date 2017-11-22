@@ -206,6 +206,8 @@ define([
         },
 
         componentDidMount() {
+            this.mounted = true;
+
             $(this.wrap).on('selectAll', (event) => {
                 this.props.onSelectAll(this.props.product.id);
             })
@@ -226,6 +228,7 @@ define([
         },
 
         componentWillUnmount() {
+            this.mounted = false;
             this.removeEvents.forEach(({ node, func, events }) => {
                 $(node).off(events, func);
             });
