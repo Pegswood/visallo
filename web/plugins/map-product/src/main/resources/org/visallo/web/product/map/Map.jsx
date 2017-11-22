@@ -167,6 +167,29 @@ define([
             return { viewport: this.props.viewport, generatePreview: true }
         },
 
+        shouldComponentUpdate(nextProps) {
+            const onlyViewportChanged = Object.keys(nextProps).every(key => {
+                if (key === 'viewport') {
+                    return true;
+                }
+                return this.props[key] === nextProps[key];
+            })
+
+            if (onlyViewportChanged) {
+                return false;
+            }
+            return true;
+        },
+
+        componentWillReceiveProps(nextProps) {
+            if (nextProps.product.id === this.props.product.id) {
+                this.setState({ viewport: {}, generatePreview: false })
+            } else {
+                this.saveViewport(this.props)
+                this.setState({ viewport: nextProps.viewport || {}, generatePreview: true })
+            }
+        },
+
         componentWillMount() {
             this.caches = {
                 styles: {
@@ -193,6 +216,8 @@ define([
                 this.props.onDropElementIds(elementIds)
             })
 
+            this.saveViewportDebounce = _.debounce(this.saveViewport, 250);
+
             this.legacyListeners({
                 fileImportSuccess: { node: $('.products-full-pane.visible')[0], handler: (event, { vertexIds }) => {
                     this.props.onDropElementIds({vertexIds});
@@ -208,15 +233,6 @@ define([
             $(this.wrap).off('selectAll');
             $(document).off('.org-visallo-map');
             this.saveViewport(this.props)
-        },
-
-        componentWillReceiveProps(nextProps) {
-            if (nextProps.product.id === this.props.product.id) {
-                this.setState({ viewport: {}, generatePreview: false })
-            } else {
-                this.saveViewport(this.props)
-                this.setState({ viewport: nextProps.viewport || {}, generatePreview: true })
-            }
         },
 
         render() {
@@ -297,18 +313,26 @@ define([
         },
 
         onViewport(event) {
+            const { product: { id: productId } } = this.props;
             const view = event.target;
+            const zoom = view.getZoom();
+            const pan = [...view.getCenter()];
 
-            var zoom = view.getResolution(), pan = view.getCenter();
-            if (!this.currentViewport) this.currentViewport = {};
-            this.currentViewport[this.props.product.id] = { zoom, pan: [...pan] };
+            if (!this.currentViewport) {
+                this.currentViewport = {};
+            }
+            this.currentViewport[productId] = { zoom, pan };
+
+            this.saveViewportDebounce(this.props);
         },
 
         saveViewport(props) {
-            var productId = props.product.id;
-            if (this.currentViewport && productId in this.currentViewport) {
-                var viewport = this.currentViewport[productId];
-                props.onUpdateViewport(productId, viewport);
+            if (this.mounted) {
+                var productId = props.product.id;
+                if (this.currentViewport && productId in this.currentViewport) {
+                    var viewport = this.currentViewport[productId];
+                    props.onUpdateViewport(productId, viewport);
+                }
             }
         },
 
