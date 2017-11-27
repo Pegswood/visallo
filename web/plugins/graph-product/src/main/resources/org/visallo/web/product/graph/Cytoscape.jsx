@@ -613,7 +613,9 @@ define([
         },
 
         makeChanges(older, newer, reparenting, decorations, ghostAnimations) {
-            const cy = this.state.cy
+            const { interacting } = this.props;
+            const { cy } = this.state;
+
             const add = [];
             const remove = [...older];
             const modify = [];
@@ -637,7 +639,7 @@ define([
                 Object.keys(topLevelChanges).forEach(change => {
                     const cyNode = cy.getElementById(item.data.id);
 
-                    if (cyNode.scratch('interacting')) {
+                    if (cyNode.scratch('interacting') || interacting[item.data.id] ) {
                         return;
                     }
 
@@ -678,7 +680,7 @@ define([
                             break;
 
                         case 'position':
-                            if (!cyNode.scratch('interacting') && !cyNode.grabbed() && !(cyNode.id() in this.moving)) {
+                            if (!cyNode.grabbed() && !(cyNode.id() in this.moving)) {
                                 if (!item.data.alignment && !item.data.animateTo) {
                                     const positionChangedWithinTolerance = _.some(cyNode.position(), (oldV, key) => {
                                         const newV = item.position[key];

@@ -67,6 +67,11 @@ define([
             }
         },
 
+        setInteracting: ({ interactingIds }) => ({
+            type: 'PRODUCT_SET_INTERACTING',
+            payload: { interactingIds }
+        }),
+
         update: (product) => ({
             type: 'PRODUCT_UPDATE',
             payload: {

@@ -282,7 +282,7 @@ define([
 
         render() {
             var { viewport, initialProductDisplay, draw, paths } = this.state,
-                { panelPadding, registry, workspace, product } = this.props,
+                { panelPadding, registry, workspace, product, interacting } = this.props,
                 { editable } = workspace,
                 { previewMD5 } = product,
                 config = {...CONFIGURATION(this.props), ...viewport},
@@ -328,6 +328,7 @@ define([
                         config={config}
                         panelPadding={panelPadding}
                         elements={cyElements}
+                        interacting={interacting}
                         drawEdgeToMouseFrom={draw ? _.pick(draw, 'vertexId', 'toVertexId') : null }
                         drawPaths={paths}
                         onGhostFinished={this.props.onGhostFinished}
