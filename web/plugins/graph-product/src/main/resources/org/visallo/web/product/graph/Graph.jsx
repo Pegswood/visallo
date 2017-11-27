@@ -895,7 +895,7 @@ define([
 
                 if (ancillary) {
                     selected = false;
-                    selectable = true;
+                    selectable = false;
                     classes = 'ancillary';
                     registry['org.visallo.graph.ancillary'].forEach(({
                         canHandle, data: dataFn, classes: classFn
